@@ -217,7 +217,8 @@ public class EnemyBase: MonoBehaviour
     {
         //增加玩家经验值
         GameManager.Instance.exp += enemyData.provideExp * GameManager.Instance.propData.expMuti;
-        GamePanel.Instance.RenewExp();
+        // 通过事件通知 GamePanel 更新经验条
+        EventCenter.Instance.EventTrigger(E_EventType.Player_ExpChanged, GameManager.Instance.exp);
         
         // 掉落金币
         Instantiate(GameManager.Instance.moeny_prefab, transform.position, Quaternion.identity);

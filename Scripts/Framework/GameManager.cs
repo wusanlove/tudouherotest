@@ -64,8 +64,8 @@ public class GameManager : BaseMgrMono<GameManager>
         //获取所有道具信息
         TextAsset propTextAsset = Resources.Load<TextAsset>("Data/prop");
         propDatas = JsonConvert.DeserializeObject<List<PropData>>(propTextAsset.text);
-        //加载角色解锁状态
-        InitUnlockRole();
+        //加载角色解锁状态（改由 SaveProgressService 统一管理）
+        SaveProgressService.Instance.InitRoleUnlockDefaults();
         //加载音效预制体
         attackMusic = Resources.Load<GameObject>("Audio/AttackMusic");
         shootMusic = Resources.Load<GameObject>("Audio/ShootMusic");
@@ -73,18 +73,9 @@ public class GameManager : BaseMgrMono<GameManager>
         hurtMusic = Resources.Load<GameObject>("Audio/HurtMusic");
         
         DontDestroyOnLoad(gameObject);
-    }
 
-    private void InitUnlockRole()
-    {
-        if (!PlayerPrefs.HasKey("多面手"))
-        {
-            PlayerPrefs.SetInt("多面手", 0);
-        }
-        if (!PlayerPrefs.HasKey("公牛"))
-        {
-            PlayerPrefs.SetInt("公牛", 0);
-        }
+        // 初始化状态机（懒加载单例，确保在主线程创建）
+        var _ = GameStateMachine.Instance;
     }
 
     public void InitProp()

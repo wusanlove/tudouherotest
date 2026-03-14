@@ -50,7 +50,7 @@ using Newtonsoft.Json;
         {
             this._roleName.SetText(roleData.name);
             this._roleDescription.SetText(roleData.describe);
-            if (roleData.unlock == 0 && PlayerPrefs.GetInt(roleData.name, 1) == 1)
+            if (roleData.unlock == 0 && SaveProgressService.Instance.GetRoleUnlock(roleData.name) == 0)
             {
                 _roleImage.sprite = Resources.Load<Sprite>("Image/UI/锁");
                 this._roleDescription.SetText(roleData.unlockConditions);

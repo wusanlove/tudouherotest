@@ -1,5 +1,4 @@
 using UnityEngine;using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 using UnityEngine.U2D;
 using UnityEngine.UI;
 public class DifficultyUI:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler
@@ -33,10 +32,8 @@ public class DifficultyUI:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler
             GameManager.Instance.currentDifficulty=difficultyData;
             //关闭难度选择面板
             DifficultySelectPanel.Instance._canvasGroup.alpha = 0f;
-            //跳转游戏界面
-            SceneManager.LoadScene(2);
-           
-            
+            //通过状态机跳转游戏界面，避免直接调用 SceneManager
+            GameStateMachine.Instance.EnterGame();
         });
     }
     public void OnPointerEnter(PointerEventData eventData)

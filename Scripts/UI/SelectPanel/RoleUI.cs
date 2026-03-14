@@ -23,7 +23,7 @@ public class RoleUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         this.roleData = data;
         
-        if (roleData.unlock == 0 && PlayerPrefs.GetInt(roleData.name, 1) == 1 )
+        if (roleData.unlock == 0 && SaveProgressService.Instance.GetRoleUnlock(roleData.name) == 0)
         {
             _avatar.sprite = Resources.Load<Sprite>("Image/UI/锁");
         }

@@ -44,6 +44,14 @@ public class LevelControl :BaseMgrMono<LevelControl>
         enemyPrefabDic.Add("enemy3", enemy3_prefab);
         enemyPrefabDic.Add("enemy4", enemy4_prefab);
         enemyPrefabDic.Add("enemy5", enemy5_prefab);
+
+        // 订阅游戏失败事件（由 Player.Die() 触发）
+        EventCenter.Instance.AddEventListener(E_EventType.Game_Lose, BadGame);
+    }
+
+    private void OnDestroy()
+    {
+        EventCenter.Instance.RemoveEventListener(E_EventType.Game_Lose, BadGame);
     }
 
     // Start is called before the first frame update
@@ -76,11 +84,8 @@ public class LevelControl :BaseMgrMono<LevelControl>
 
     private void GenerateEnemy()
     {
-        //遍历所有波次信息
-        //TODO:可以测试的时候不按时间轴生成，而且不报错
         foreach (WaveData waveData in currentLevelData.enemys)
         {
-            //遍历敌人数量
             for (int i = 0; i < waveData.count; i++)
             {
                 StartCoroutine(SwawnEnemies(waveData));
@@ -113,13 +118,12 @@ public class LevelControl :BaseMgrMono<LevelControl>
                     {
                         enemy.enemyData = e;
                 
-                        //判断是否为精英
                         if (waveData.elite == 1)
                         {
                             enemy.SetElite();
                         }
                     }
-                }   //没必要直接 enemyawake时赋值data
+                }
                 
                 if (waveData.elite == 1)
                 {
@@ -167,10 +171,10 @@ public class LevelControl :BaseMgrMono<LevelControl>
                 }
                 
             }
+
+            // 通过事件推送倒计时更新，解耦 GamePanel.Update 轮询
+            EventCenter.Instance.EventTrigger(E_EventType.Wave_TimerUpdated, waveTimer);
         }
-
-        GamePanel.Instance.RenewCountDown(waveTimer);
-
     }
     
    // 进入下一关
@@ -178,8 +182,11 @@ public class LevelControl :BaseMgrMono<LevelControl>
      {
          GameManager.Instance.money += GameManager.Instance.propData.harvest; //收获添加到金币中
          GameManager.Instance.currentWave += 1; //波次+1
+
+         EventCenter.Instance.EventTrigger(E_EventType.Wave_Ended);
+
          if(GameManager.Instance.currentWave <= GameManager.Instance.maxWave)
-            SceneManager.LoadScene("04-Shop");  //跳转商店
+            GameStateMachine.Instance.EnterShop();  //通过状态机跳转商店
          else
          {
              GoodGame();
@@ -195,7 +202,6 @@ public class LevelControl :BaseMgrMono<LevelControl>
         _successPanel.GetComponent<CanvasGroup>().alpha = 1;
         StartCoroutine(GoMenu());
         
-        //todo ：所有敌人 消失
         for (int i = 0; i < enemy_list.Count; i++)
         {
             if (enemy_list[i])
@@ -205,24 +211,12 @@ public class LevelControl :BaseMgrMono<LevelControl>
           
         }
 
-        if (PlayerPrefs.GetInt("多面手") == 0)
-        {
-            Debug.Log("多面手解锁");
-            PlayerPrefs.SetInt("多面手", 1);
-        
-            for (int i = 0; i < GameManager.Instance.roleDatas.Count; i++)
-            {
-                if (GameManager.Instance.roleDatas[i].name == "多面手")
-                {
-                    GameManager.Instance.roleDatas[i].unlock = 1;
-                }
-            }
-        }
-        
+        // 通过进度服务解锁"多面手"
+        SaveProgressService.Instance.TryUnlockRole("多面手", true, GameManager.Instance.roleDatas);
+
+        EventCenter.Instance.EventTrigger(E_EventType.Game_Win);
     }
     
-    
-    //todo 波次完成
     
     //游戏失败
     public void BadGame()
@@ -230,8 +224,6 @@ public class LevelControl :BaseMgrMono<LevelControl>
         _failPanel.GetComponent<CanvasGroup>().alpha = 1;
         StartCoroutine(GoMenu());
         
-        
-        //todo 所有敌人 消失
         for (int i = 0; i < enemy_list.Count; i++)
         {
             if (enemy_list[i])
@@ -246,6 +238,7 @@ public class LevelControl :BaseMgrMono<LevelControl>
      IEnumerator GoMenu()
      {
          yield return new WaitForSeconds(3);
-         SceneManager.LoadScene(0);
+         //通过状态机返回主菜单
+         GameStateMachine.Instance.EnterMainMenu();
      }
 }

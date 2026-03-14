@@ -1,11 +1,10 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// 公共Mono模块管理器
+/// 公共 Mono 模块管理器（非 MonoBehaviour 单例）。
+/// 内部创建一个隐藏 MonoBehaviour helper，用于驱动 Update 回调和协程。
 /// </summary>
 public class MonoMgr : BaseMgr<MonoMgr>
 {
@@ -13,77 +12,42 @@ public class MonoMgr : BaseMgr<MonoMgr>
     private event UnityAction fixedUpdateEvent;
     private event UnityAction lateUpdateEvent;
 
-    /// <summary>
-    /// 添加Update帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddUpdateListener(UnityAction updateFun)
+    private MonoHelper helper;
+
+    private MonoMgr()
     {
-        updateEvent += updateFun;
+        var go = new GameObject("[MonoMgr]");
+        Object.DontDestroyOnLoad(go);
+        helper = go.AddComponent<MonoHelper>();
+        helper.owner = this;
     }
 
-    /// <summary>
-    /// 移除Update帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveUpdateListener(UnityAction updateFun)
+    // -------- 由 MonoHelper 回调 --------
+    internal void InvokeUpdate()       => updateEvent?.Invoke();
+    internal void InvokeFixedUpdate()  => fixedUpdateEvent?.Invoke();
+    internal void InvokeLateUpdate()   => lateUpdateEvent?.Invoke();
+
+    // -------- 协程 --------
+    /// <summary>通过内部 MonoBehaviour 代理执行协程。</summary>
+    public void StartCoroutine(IEnumerator enumerator)
     {
-        updateEvent -= updateFun;
+        helper.StartCoroutine(enumerator);
     }
 
-    /// <summary>
-    /// 添加FixedUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddFixedUpdateListener(UnityAction updateFun)
-    {
-        fixedUpdateEvent += updateFun;
-    }
-    /// <summary>
-    /// 移除FixedUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveFixedUpdateListener(UnityAction updateFun)
-    {
-        fixedUpdateEvent -= updateFun;
-    }
+    // -------- Update 监听 --------
+    public void AddUpdateListener(UnityAction updateFun)       => updateEvent += updateFun;
+    public void RemoveUpdateListener(UnityAction updateFun)    => updateEvent -= updateFun;
+    public void AddFixedUpdateListener(UnityAction updateFun)  => fixedUpdateEvent += updateFun;
+    public void RemoveFixedUpdateListener(UnityAction updateFun) => fixedUpdateEvent -= updateFun;
+    public void AddLateUpdateListener(UnityAction updateFun)   => lateUpdateEvent += updateFun;
+    public void RemoveLateUpdateListener(UnityAction updateFun) => lateUpdateEvent -= updateFun;
+}
 
-    /// <summary>
-    /// 添加LateUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddLateUpdateListener(UnityAction updateFun)
-    {
-        lateUpdateEvent += updateFun;
-    }
-
-    /// <summary>
-    /// 移除LateUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveLateUpdateListener(UnityAction updateFun)
-    {
-        lateUpdateEvent -= updateFun;
-    }
-
-
-    private void Update()
-    {
-        updateEvent?.Invoke();
-    }
-
-    private void FixedUpdate()
-    {
-        fixedUpdateEvent?.Invoke();
-    }
-
-    private void LateUpdate()
-    {
-        lateUpdateEvent?.Invoke();
-    }
-
-    public  void StartCoroutine(IEnumerator enumerator)
-    {
-        throw new NotImplementedException();
-    }
+/// <summary>MonoMgr 的内部 MonoBehaviour 代理，驱动帧回调与协程。</summary>
+public class MonoHelper : MonoBehaviour
+{
+    public MonoMgr owner;
+    private void Update()       => owner?.InvokeUpdate();
+    private void FixedUpdate()  => owner?.InvokeFixedUpdate();
+    private void LateUpdate()   => owner?.InvokeLateUpdate();
 }

@@ -23,28 +23,15 @@ class Player : BaseMgrMono<Player>
 
     private void Start()
     {
-        
-        if (GameManager.Instance.propData.maxHp >= 50)
-        {
-            if (PlayerPrefs.GetInt("公牛") == 0) //TODO:解锁条件可不可以放在一起
-            {
-                Debug.Log("公牛解锁");
-                PlayerPrefs.SetInt("公牛", 1);
-
-                for (int i = 0; i < GameManager.Instance.roleDatas.Count; i++)
-                {
-                    if (GameManager.Instance.roleDatas[i].name == "公牛")
-                    {
-                        GameManager.Instance.roleDatas[i].unlock = 1;
-                    }
-                }
-            }
-        }
+        // 通过进度服务检查并解锁"公牛"
+        SaveProgressService.Instance.TryUnlockRole(
+            "公牛",
+            GameManager.Instance.propData.maxHp >= 50,
+            GameManager.Instance.roleDatas);
     }
 
     private void Update()
     {
-        //TODO：用事件管理系统监听游戏状态
         if (GameManager.Instance.isDead)
             return;
         Move();
@@ -55,29 +42,25 @@ class Player : BaseMgrMono<Player>
     private void Revive()
     {
         reviveTimer += Time.deltaTime;
-        if (reviveTimer >= 1f)
+        if (reviveTimer < 1f) return;
+        reviveTimer = 0;
+
+        if (GameManager.Instance.propData.revive <= 0) return;
+
+        GameManager.Instance.hp = Mathf.Clamp(
+            GameManager.Instance.hp + GameManager.Instance.propData.revive
+            ,0,  GameManager.Instance.propData.maxHp);
+        
+        //公牛生命再生翻倍 
+        if (GameManager.Instance.currentRoleData.name == "公牛")
         {
-            //不扣血
-            if (GameManager.Instance.propData.revive <= 0)
-            {
-                return;
-            }
-            
             GameManager.Instance.hp = Mathf.Clamp(
                 GameManager.Instance.hp + GameManager.Instance.propData.revive
                 ,0,  GameManager.Instance.propData.maxHp);
-            
-            //公牛生命再生翻倍 
-            if (GameManager.Instance.currentRoleData.name == "公牛")
-            {
-                GameManager.Instance.hp = Mathf.Clamp(
-                    GameManager.Instance.hp + GameManager.Instance.propData.revive
-                    ,0,  GameManager.Instance.propData.maxHp);
-            }
         }
-       
-        
-        reviveTimer = 0;
+
+        // 通过事件通知 GamePanel 更新血条
+        EventCenter.Instance.EventTrigger(E_EventType.Player_HpChanged, GameManager.Instance.hp);
     }
 
     private void EatMoney()
@@ -93,14 +76,8 @@ class Player : BaseMgrMono<Player>
                 Destroy(moenyInRange[i].gameObject);
 
                 GameManager.Instance.money += 1;
-                GamePanel.Instance.RenewMoney();
-                
-
-                //文字
-                // Number number = Instantiate(GameManager.Instance.number_prefab).GetComponent<Number>();
-                // number.text.text = "+1";
-                // number.text.color = new Color(86 / 255f, 185/255f, 86/255f);
-                // number.transform.position = transform.position+new Vector3(0,0.7f,0);
+                // 通过事件通知 GamePanel 更新金币显示
+                EventCenter.Instance.EventTrigger(E_EventType.Player_MoneyChanged, GameManager.Instance.money);
             }
         }
     }
@@ -112,14 +89,13 @@ class Player : BaseMgrMono<Player>
         {
             //拾取金币
             GameManager.Instance.money += 1;
-            GamePanel.Instance.RenewMoney();
+            EventCenter.Instance.EventTrigger(E_EventType.Player_MoneyChanged, GameManager.Instance.money);
             Destroy(other.gameObject);
         }
     }
 
     void Move()
     {
-        //TODO: 使用输入系统获取输入,并用Dotween移动
         float moveHorizontal = Input.GetAxis("Horizontal");
         float moveVertical = Input.GetAxis("Vertical");
         Vector2 movement = new Vector2(moveHorizontal, moveVertical);
@@ -158,43 +134,34 @@ class Player : BaseMgrMono<Player>
         if (GameManager.Instance.hp - attack <= 0 )
         {
             GameManager.Instance.hp = 0;
+            // 通知血量变化后再调用 Dead
+            EventCenter.Instance.EventTrigger(E_EventType.Player_HpChanged, GameManager.Instance.hp);
             Dead();
         }
         else
         {
             GameManager.Instance.hp -= attack;
 
-            //文字
-            // Number number = Instantiate(GameManager.Instance.number_prefab).GetComponent<Number>();
-            // number.text.text = attack.ToString();
-            // number.text.color = new Color(255 / 255f, 0, 0);
-            // number.transform.position = transform.position+new Vector3(0,0.7f,0);
-
-            
-            //音效
-            Instantiate(GameManager.Instance.hurtMusic);
+            //音效 – 通过事件系统发送，不直接 Instantiate
+            AudioService.Instance.PlayHurtSfx();
         }
         
-        //更新血条
-        GamePanel.Instance.RenewHp();
+        //通过事件通知 GamePanel 更新血条
+        EventCenter.Instance.EventTrigger(E_EventType.Player_HpChanged, GameManager.Instance.hp);
     }
 
     public void Dead()
     {
-        //死亡音效，一段时间后弹出失败面板
         GameManager.Instance.isDead = true;
+        // 广播玩家死亡事件
+        EventCenter.Instance.EventTrigger(E_EventType.Player_Dead);
         StartCoroutine(Die());
     }
 
     IEnumerator Die()
     {
-        //播放死亡动画 音效
-        //TODO: 播放死亡动画 音效
-        
-        
-        //等待几秒
         yield return new WaitForSeconds(2f);
-        //弹出失败面板
-        LevelControl.Instance.BadGame();
+        // 通过事件通知，让 LevelControl 处理失败逻辑
+        EventCenter.Instance.EventTrigger(E_EventType.Game_Lose);
     }
 }
