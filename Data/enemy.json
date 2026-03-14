@@ -1,0 +1,57 @@
+[
+  {
+    "id": 1,
+    "name": "Enemy1",
+    "hp": 8,
+    "damage": 1,
+    "speed": 3,
+    "attackTime": 1.5,
+    "provideExp": 1,
+    "skillTime": -1, 
+    "range": -1
+  },
+  {
+    "id": 2,
+    "name": "Enemy2",
+    "hp": 6,
+    "damage": 2,
+    "speed": 4,
+    "attackTime": 1.5,
+    "provideExp": 2,
+    "skillTime": -1,
+    "range": -1
+  },
+  {
+    "id": 3,
+    "name": "Enemy3",
+    "hp": 8,
+    "damage": 2,
+    "speed": 3,
+    "attackTime": 1.5,
+    "provideExp": 3,
+    "skillTime": 2.5,
+    "range": 5.5
+  },
+  {
+    "id": 4,
+    "name": "Enemy4",
+    "hp": 50,
+    "damage": 5,
+    "speed": 3,
+    "attackTime": 1.5,
+    "provideExp": 6,
+    "skillTime": 3.5,
+    "range": 3.5
+  },
+  {
+    "id": 5,
+    "name": "Enemy5",
+    "hp": 2000,
+    "damage": 10,
+    "speed": 2.5,
+    "attackTime": 1.5,
+    "provideExp": 20,
+    "skillTime": 4.5,
+    "range": 10
+  }
+]

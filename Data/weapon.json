@@ -1,0 +1,84 @@
+[
+  {
+    "id": 1,
+    "name": "拳",
+    "avatar": "Image/武器/拳",
+    "grade": 1,
+    "price": 11,
+    "damage" : 8,
+    "isLong": 0,
+    "range": 100,
+    "critical_strikes_multiple": 1.5,
+    "critical_strikes_probability": 0.01,
+    "cooling": 0.78,
+    "repel": 0,
+    "describe": "<color=#c3bc93>伤害</color> : 8\n<color=#c3bc93>暴击</color> : X1.5 (1%概率)\n<color=#c3bc93>冷却</color> : 0.78s\n<color=#c3bc93>击退</color> : 15\n<color=#c3bc93>范围</color> : 150 (近战) "
+  },
+  
+  
+  {
+    "id": 2,
+    "name": "树枝",
+    "price": 13,
+    "avatar": "Image/武器/树枝",
+    "grade": 1,
+    "damage" : 8,
+    "isLong": 0,
+    "range": 110,
+    "critical_strikes_multiple": 2,
+    "critical_strikes_probability": 0.03,
+    "cooling": 1.25,
+    "repel": 0,
+    "describe": "<color=#c3bc93>伤害</color> : 8\n<color=#c3bc93>暴击</color> : X2 (3%概率)\n<color=#c3bc93>冷却</color> : 1.25s\n<color=#c3bc93>范围</color> : 175 (近战)\n每额外持有一个1个<color=#00FF00>树枝</color>便会<color=#00FF00>+4伤害</color> "
+
+  },
+  {
+    "id": 3,
+    "name": "医疗枪",
+    "price": 15,
+    "avatar": "Image/武器/医疗枪",
+    "grade": 1,
+    "damage" : 10,
+    "isLong": 1,
+    "range": 400,
+    "critical_strikes_multiple": 2,
+    "critical_strikes_probability": 0.03,
+    "cooling": 0.95,
+    "repel": 0,
+    "describe": "<color=#c3bc93>伤害</color> : 10\n<color=#c3bc93>暴击</color> : X2 (3%概率)\n<color=#c3bc93>冷却</color> : 0.95s\n<color=#c3bc93>范围</color> : 400 (远战)\n<color=#c3bc93>声明窃取</color> : 40% "
+
+  },
+  {
+    "id": 4,
+    "name": "手枪",
+    "price": 12,
+    "avatar": "Image/武器/手枪",
+    "grade": 1,
+    "damage" : 12,
+    "isLong": 1,
+    "range": 400,
+    "critical_strikes_multiple": 2,
+    "critical_strikes_probability": 0.03,
+    "cooling": 1.2,
+    "repel": 15,
+    "describe": "<color=#c3bc93>伤害</color> : 12\n<color=#c3bc93>暴击</color> : X2 (3%概率)\n<color=#c3bc93>冷却</color> : 1.2s\n<color=#c3bc93>击退</color> : 15\n<color=#c3bc93>范围</color> : 400 (远战)\n<color=#c3bc93>贯通</color> : 1 (-50%伤害) "
+
+  },
+  {
+    "id": 5,
+    "name": "十字弓",
+    "price": 10,
+    "avatar": "Image/武器/十字弓",
+    "grade": 1,
+    "damage" : 8,
+    "isLong": 1,
+    "range": 350,
+    "critical_strikes_multiple": 1.5,
+    "critical_strikes_probability": 0.3,
+    "cooling": 1.13,
+    "repel": 8,
+    "describe": "<color=#c3bc93>伤害</color> : 8\n<color=#c3bc93>暴击</color> : X1.5 (30%概率)\n<color=#c3bc93>冷却</color> : 1.13s\n<color=#c3bc93>击退</color> : 8\n<color=#c3bc93>范围</color> : 350 (远战)\n暴击时最多能贯通<color=#00FF00>1</color>次 "
+
+
+  }
+]
