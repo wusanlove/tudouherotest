@@ -1,75 +1,50 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+
+/// <summary>
+/// 角色列表项 — 只负责展示与交互。
+/// 点击后发 UI_OnRoleSelected 事件，UIFlowController 统一处理面板切换与数据保存。
+/// 不再直接引用 WeaponSelectPanel 或手动操作 CanvasGroup。
+/// </summary>
 public class RoleUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
-    private Image _backImage; //背景图片
-    private Image _avatar;  //角色头像
-    private Button _button;  //按钮
-    
+    private Image _backImage;
+    private Image _avatar;
+    private Button _button;
     private RoleData roleData;
+
     private void Awake()
     {
         _backImage = GetComponent<Image>();
-        _avatar = transform.GetChild(0).GetComponent<Image>();
-        _button = GetComponent<Button>();
-        
+        _avatar    = transform.GetChild(0).GetComponent<Image>();
+        _button    = GetComponent<Button>();
     }
 
-   public void SetRoleData(RoleData data)
+    public void SetRoleData(RoleData data)
     {
-        this.roleData = data;
-        
-        if (roleData.unlock == 0 && PlayerPrefs.GetInt(roleData.name, 1) == 1 )
-        {
-            _avatar.sprite = Resources.Load<Sprite>("Image/UI/锁");
-        }
-        else
-        {
-            _avatar.sprite = Resources.Load<Sprite>(roleData.avatar);
-        }
+        roleData = data;
+        bool locked = roleData.unlock == 0 && PlayerPrefs.GetInt(roleData.name, 1) == 1;
+        _avatar.sprite = locked
+            ? Resources.Load<Sprite>("Image/UI/锁")
+            : Resources.Load<Sprite>(roleData.avatar);
 
         _button.onClick.AddListener(() =>
         {
-            ButtonClickRole(data);
+            // 通知 UIFlowController 处理选角逻辑（面板互斥、保存数据）
+            EventCenter.Instance.EventTrigger(E_EventType.UI_OnRoleSelected, data);
+            RoleSelectPanel.Instance?.RenewUI(roleData);
         });
     }
 
-    void ButtonClickRole(RoleData data)
-    {
-        //记录下选角色的信息
-        GameManager.Instance.currentRoleData = data;
-        //关闭角色选择面板
-        //TODO:使用UIMgr进行管理
-        RoleSelectPanel.Instance._canvasGroup.alpha = 0;
-        RoleSelectPanel.Instance._canvasGroup.interactable = false;
-        RoleSelectPanel.Instance._canvasGroup.blocksRaycasts = false;
-        //打开武器选择面板
-        WeaponSelectPanel.Instance._canvasGroup.alpha = 1;
-        WeaponSelectPanel.Instance._canvasGroup.interactable = true;
-        WeaponSelectPanel.Instance._canvasGroup.blocksRaycasts = true;
-        //克隆生成武器UI->直接在WeaponSelectPanel的函数中调用
-        //TODO:UIMgr优化需要/事件系统优化
-        
-        Instantiate(RoleSelectPanel.Instance._roleDetailGameObject, WeaponSelectPanel.Instance._weaponDetailTransform);
-        WeaponSelectPanel.Instance._weaponDetailGameObject.SetActive(true);
-    }
-    //鼠标移入
     public void OnPointerEnter(PointerEventData eventData)
     {
-        _backImage.color = new Color(207/255f, 207/255f , 207/255f);
-        RoleSelectPanel.Instance.RenewUI(roleData);
-
+        _backImage.color = new Color(207 / 255f, 207 / 255f, 207 / 255f);
+        RoleSelectPanel.Instance?.RenewUI(roleData);
     }
-    
 
- 
-    //鼠标移出
     public void OnPointerExit(PointerEventData eventData)
     {
-        _backImage.color = new Color(34/255f, 34/255f , 34/255f);
+        _backImage.color = new Color(34 / 255f, 34 / 255f, 34 / 255f);
     }
 }

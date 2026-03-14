@@ -1,59 +1,47 @@
-using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
-using Newtonsoft.Json;
 using TMPro;
-using Object = UnityEngine.Object;
 
+/// <summary>
+/// 武器选择面板 — 展示武器列表与详情。
+/// 数据来自 ConfigService（不再自行加载 JSON）。
+/// </summary>
 public class WeaponSelectPanel : BaseMgrMono<WeaponSelectPanel>
-{ 
+{
     public CanvasGroup _canvasGroup;
-   public Transform _weaponListTransform;
-   public Transform _weaponDetailTransform;
-   [SerializeField]private GameObject _weaponPrefab;
-   //武器Detail
-   [SerializeField]private TextMeshProUGUI _weaponName;
-   [SerializeField] private Image _weaponImage;
-   [SerializeField] private TextMeshProUGUI _weaponDescription;
-   
-   List<WeaponData> weaponDataList;
-   public GameObject _weaponDetailGameObject;
+    public Transform   _weaponListTransform;
+    public Transform   _weaponDetailTransform;
 
-   public override void Awake()
+    [SerializeField] private GameObject      _weaponPrefab;
+    [SerializeField] private TextMeshProUGUI _weaponName;
+    [SerializeField] private Image           _weaponImage;
+    [SerializeField] private TextMeshProUGUI _weaponDescription;
+
+    public GameObject _weaponDetailGameObject;
+
+    public override void Awake()
     {
-        base.Awake(); 
+        base.Awake();
         _canvasGroup = GetComponent<CanvasGroup>();
-        //给weaponDataList赋值
-        TextAsset weaponTextAsset = Resources.Load<TextAsset>("Data/weapon"); 
-        weaponDataList = JsonConvert.DeserializeObject<List<WeaponData>>(weaponTextAsset.text);
-        
-        
     }
 
     private void Start()
     {
-        if (weaponDataList != null)
+        List<WeaponData> weapons = ConfigService.Instance.Weapons;
+        if (weapons == null) return;
+        foreach (WeaponData data in weapons)
         {
-             foreach (var it in weaponDataList)
-            {
-                
-                WeaponUI weaponUI=Instantiate(_weaponPrefab, _weaponListTransform).GetComponent<WeaponUI>();
-                weaponUI.SetWeaponData(it);
-
-            }
+            WeaponUI ui = Instantiate(_weaponPrefab, _weaponListTransform).GetComponent<WeaponUI>();
+            ui.SetWeaponData(data);
         }
-       
-        
-        
     }
 
+    /// <summary>刷新右侧武器详情区。</summary>
     public void RenewUI(WeaponData weaponData)
     {
-        this._weaponName.SetText(weaponData.name);
-        this._weaponDescription.SetText(weaponData.describe);
-        this._weaponImage.sprite= Resources.Load<Sprite>(weaponData.avatar);
-          
+        _weaponName.SetText(weaponData.name);
+        _weaponDescription.SetText(weaponData.describe);
+        _weaponImage.sprite = Resources.Load<Sprite>(weaponData.avatar);
     }
 }

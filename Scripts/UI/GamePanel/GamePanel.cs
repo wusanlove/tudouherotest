@@ -1,90 +1,91 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GamePanel :BaseMgrMono<GamePanel>
-{   //TODO:使用BasePanel基类并优化UI管理器 统一管理UI面板的打开关闭
+/// <summary>
+/// 游戏 HUD 面板 — 显示 HP / 经验 / 金币 / 倒计时 / 波次。
+/// 通过 EventCenter 订阅游戏状态事件来刷新 UI，
+/// 不再被 Player / EnemyBase / LevelControl 直接调用。
+/// </summary>
+public class GamePanel : BaseMgrMono<GamePanel>
+{
     public CanvasGroup _canvasGroup;
-    
-    public Slider _hpSlider;
-    public Slider _expSlider;
-    public TMP_Text _moenyCount; //金币
-    public TMP_Text _expCount; //等级 LV.0
-    public TMP_Text _hpCount; //生命值 10/15
-    public TMP_Text _countDown; //关卡倒计时 15
-    public TMP_Text _waveCount; //波次 15
+
+    public Slider       _hpSlider;
+    public Slider       _expSlider;
+    public TMP_Text     _moenyCount;
+    public TMP_Text     _expCount;
+    public TMP_Text     _hpCount;
+    public TMP_Text     _countDown;
+    public TMP_Text     _waveCount;
 
     public override void Awake()
     {
         base.Awake();
-        this.GetComponent<CanvasGroup>().alpha = 1;
-        this.GetComponent<CanvasGroup>().interactable = true;
-        this.GetComponent<CanvasGroup>().blocksRaycasts = true;
+        _canvasGroup.alpha          = 1;
+        _canvasGroup.interactable   = true;
+        _canvasGroup.blocksRaycasts = true;
+
+        // 订阅游戏状态事件
+        EventCenter.Instance.AddEventListener<float>(E_EventType.Game_PlayerHpChanged,    OnHpChanged);
+        EventCenter.Instance.AddEventListener<float>(E_EventType.Game_PlayerMoneyChanged, OnMoneyChanged);
+        EventCenter.Instance.AddEventListener<float>(E_EventType.Game_PlayerExpChanged,   OnExpChanged);
+        EventCenter.Instance.AddEventListener<float>(E_EventType.Game_WaveTimerChanged,   OnWaveTimerChanged);
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void OnDestroy()
     {
-        
-        //更新经验条
-        RenewExp();
-        //更新生命值
-        RenewHp();
-        //更新金币
-        RenewMoney();
-        //更新波次信息
+        // 面板销毁时取消订阅，防止跨场景内存泄漏
+        EventCenter.Instance.RemoveEventListener<float>(E_EventType.Game_PlayerHpChanged,    OnHpChanged);
+        EventCenter.Instance.RemoveEventListener<float>(E_EventType.Game_PlayerMoneyChanged, OnMoneyChanged);
+        EventCenter.Instance.RemoveEventListener<float>(E_EventType.Game_PlayerExpChanged,   OnExpChanged);
+        EventCenter.Instance.RemoveEventListener<float>(E_EventType.Game_WaveTimerChanged,   OnWaveTimerChanged);
+    }
+
+    private void Start()
+    {
         RenewWaveCount();
+        // 初始值从 GameManager 读取
+        OnHpChanged(GameManager.Instance.hp);
+        OnMoneyChanged(GameManager.Instance.money);
+        OnExpChanged(GameManager.Instance.exp);
     }
 
-    public void RenewMoney()
+    // ── 事件响应 ──────────────────────────────────────────────────
+
+    private void OnHpChanged(float hp)
     {
-        _moenyCount.text = GameManager.Instance.money.ToString();
+        float maxHp = GameManager.Instance.propData.maxHp;
+        _hpCount.text    = hp + "/" + maxHp;
+        _hpSlider.value  = maxHp > 0 ? hp / maxHp : 0;
     }
 
-    public void RenewHp()
+    private void OnMoneyChanged(float money)
     {
-        _hpCount.text = GameManager.Instance.hp + "/" + GameManager.Instance.propData.maxHp;
-        _hpSlider.value = GameManager.Instance.hp / GameManager.Instance.propData.maxHp;
+        _moenyCount.text = money.ToString();
     }
 
-    public void RenewExp()
+    private void OnExpChanged(float exp)
     {
-        // 25, 12 2级 ,1   1/12 = 0.1
-        _expSlider.value = GameManager.Instance.exp % 12 / 12;
-        _expCount.text = "LV." + (int)(GameManager.Instance.exp / 12);
+        _expSlider.value = exp % 12 / 12;
+        _expCount.text   = "LV." + (int)(exp / 12);
     }
-    
-    
 
-    // Update is called once per frame
-    void Update()
+    private void OnWaveTimerChanged(float time)
     {
-      
-        RenewCountDown(LevelControl.Instance.waveTimer);
+        _countDown.text  = time.ToString("F0");
+        _countDown.color = time <= 5f ? new Color(1f, 0f, 0f) : Color.white;
     }
-    
-    //更新倒计时
-    public void RenewCountDown(float time)
-    {
-        _countDown.text = time.ToString("F0");
 
-        //最后5秒 颜色变成红色
-        if (time <= 5 )
-        {
-            _countDown.color = new Color(255 / 255f, 0, 0);
-        }
-    }
-    
-    //更新波次
+    // ── 公开工具方法（保留，其他地方可能直接调） ────────────────
+
     public void RenewWaveCount()
     {
-        _waveCount.text = "第" + GameManager.Instance.currentWave.ToString() + "关";
+        _waveCount.text = "第" + GameManager.Instance.currentWave + "关";
     }
-    
-    
-    
-    
+
+    // 以下方法保留兼容，内部改为触发对应事件
+    public void RenewMoney() => OnMoneyChanged(GameManager.Instance.money);
+    public void RenewHp()    => OnHpChanged(GameManager.Instance.hp);
+    public void RenewExp()   => OnExpChanged(GameManager.Instance.exp);
 }
