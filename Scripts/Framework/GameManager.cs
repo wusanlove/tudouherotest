@@ -142,6 +142,8 @@ public class GameManager : BaseMgrMono<GameManager>
     /// <summary>
     /// 根据选定角色初始化角色专属加成，并重置初始 HP / 金币 / 经验。
     /// 由 Player.Awake() 在第一波时调用。
+    /// TODO: 用角色 ID（int）替代字符串比较，防止改名导致的隐性 bug。
+    ///       可将每个角色的属性加成抽象为 RoleData 中的字段，彻底消除此 switch。
     /// </summary>
     public void InitProp()
     {

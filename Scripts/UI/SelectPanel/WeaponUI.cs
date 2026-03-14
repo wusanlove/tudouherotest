@@ -26,6 +26,7 @@ public class WeaponUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         weaponData     = data;
         _avatar.sprite = Resources.Load<Sprite>(data.avatar);
 
+        _button.onClick.RemoveAllListeners();
         _button.onClick.AddListener(() => OnWeaponButtonClick(data));
     }
 

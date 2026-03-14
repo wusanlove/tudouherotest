@@ -28,6 +28,7 @@ public class DifficultyUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         SetBackColor(data.id);
         _avatar.sprite = Resources.Load<SpriteAtlas>("Image/UI/危险等级").GetSprite(data.name);
 
+        _button.onClick.RemoveAllListeners();
         _button.onClick.AddListener(() =>
         {
             GameManager.Instance.currentDifficulty = difficultyData;
@@ -57,7 +58,7 @@ public class DifficultyUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
             4 => new Color(103 / 255f, 54  / 255f, 54  / 255f),
             5 => new Color(103 / 255f, 69  / 255f, 54  / 255f),
             6 => new Color(91  / 255f, 87  / 255f, 55  / 255f),
-            _ => _backImage.color,
+            _ => new Color(33  / 255f, 33  / 255f, 33  / 255f), // 默认深灰
         };
     }
 }

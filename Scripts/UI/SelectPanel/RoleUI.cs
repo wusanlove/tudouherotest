@@ -29,6 +29,7 @@ public class RoleUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
             ? Resources.Load<Sprite>("Image/UI/锁")
             : Resources.Load<Sprite>(roleData.avatar);
 
+        _button.onClick.RemoveAllListeners();
         _button.onClick.AddListener(() => OnRoleButtonClick(data));
     }
 
