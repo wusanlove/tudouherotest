@@ -1,104 +1,66 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Unity.VisualScripting;
 using Newtonsoft.Json;
 
-    public class RoleSelectPanel : BaseMgrMono<RoleSelectPanel>
+/// <summary>
+/// 角色选择面板（View）：展示角色列表；用户点击角色后触发 Select_RoleChosen 事件，
+/// 由 SelectSceneMediator 负责切换面板，面板自身不知道其他面板的存在。
+/// </summary>
+public class RoleSelectPanel : BaseMgrMono<RoleSelectPanel>
+{
+    [SerializeField] private GameObject _rolePrefab;
+    [SerializeField] private Transform  _roleListTransform;
+
+    [SerializeField] private Image           _roleImage;
+    [SerializeField] private TextMeshProUGUI _roleName;
+    [SerializeField] private TextMeshProUGUI _roleDescription;
+    [SerializeField] private TextMeshProUGUI _recordText;
+
+    // 公开给 SelectSceneMediator 使用的 Detail 对象引用
+    public GameObject  _roleDetailGameObject;
+    public CanvasGroup _canvasGroup;
+
+    public override void Awake()
     {
-        List<RoleData> roleDataList;
-        TextAsset roleTextAsset;
-        [SerializeField] private GameObject _rolePrefab;
-        public GameObject _roleDetailGameObject;
-        [SerializeField] private Transform _roleListTransform;
-
-        [SerializeField] private Image _roleImage;
-        [SerializeField] private TextMeshProUGUI _roleName;
-        [SerializeField] private TextMeshProUGUI _roleDescription;
-        [SerializeField] private TextMeshProUGUI _recordText;
-        
-        public  CanvasGroup _canvasGroup;
-
-        public override void Awake()
-        {
-            base.Awake();
-            // //单例赋值
-            // _rolePrefab = Resources.Load<GameObject>("Prefabs/UI/roleSelect"); //加载方式需要优化，不方便改变路劲（所以还是Addressable好）
-            // _roleListTransform = transform.Find("RoleSelectList");
-            // _roleImage = transform.Find("RoleDetail/Avator/imgRole").GetComponent<Image>();
-            // _roleName = transform.Find("RoleDetail/txtRoleName").GetComponent<TextMeshProUGUI>();
-            // _roleDescription = transform.Find("RoleDetail/txtRoleDescription").GetComponent<TextMeshProUGUI>();
-            //json数据加载
-            roleTextAsset = Resources.Load<TextAsset>("Data/role");
-            roleDataList = JsonConvert.DeserializeObject<List<RoleData>>(roleTextAsset.text);
-        }
-
-        private void Start()
-        {
-            foreach (RoleData data in roleDataList)
-            {
-                //实例化角色UI预制体
-                RoleUI obj = Instantiate(_rolePrefab, _roleListTransform).GetComponent<RoleUI>();
-                obj.SetRoleData(data);
-    
-            }
-        }
-
-        public void RenewUI(RoleData roleData)
-        {
-            this._roleName.SetText(roleData.name);
-            this._roleDescription.SetText(roleData.describe);
-            if (roleData.unlock == 0 && PlayerPrefs.GetInt(roleData.name, 1) == 1)
-            {
-                _roleImage.sprite = Resources.Load<Sprite>("Image/UI/锁");
-                this._roleDescription.SetText(roleData.unlockConditions);
-                this._roleName.SetText("???");
-                this._recordText.SetText("尚无记录");
-                
-            }
-            else if(roleData.unlock == 1 )
-            {
-                _roleImage.sprite = Resources.Load<Sprite>(roleData.avatar);
-                this._recordText.SetText(GetRecord(roleData.record));
-            }
-          
-        }
-           
-        //获取通关记录
-        private string GetRecord(int rRecord)
-        {
-            string result = "";
-        
-            switch (rRecord)
-            {
-                case -1:
-                    result = "尚无记录";
-                    break;
-                case 0:
-                    result = "通关危险0";
-                    break;
-                case 1:
-                    result = "通关危险1";
-                    break;
-                case 2:
-                    result = "通关危险2";
-                    break;
-                case 3:
-                    result = "通关危险3";
-                    break;
-                case 4:
-                    result = "通关危险4";
-                    break;
-                case 5:
-                    result = "通关危险5";
-                    break;
-            }
-
-
-            return result;
-        }
-
-
+        base.Awake();
+        _canvasGroup = GetComponent<CanvasGroup>();
     }
+
+    private void Start()
+    {
+        // 从 ConfigService 获取角色列表（不再自行读 JSON）
+        foreach (RoleData data in ConfigService.Instance.Roles)
+        {
+            RoleUI obj = Instantiate(_rolePrefab, _roleListTransform).GetComponent<RoleUI>();
+            obj.SetRoleData(data);
+        }
+    }
+
+    /// <summary>鼠标悬停时更新详情区域（由 RoleUI 调用）</summary>
+    public void RenewUI(RoleData roleData)
+    {
+        _roleName.SetText(roleData.name);
+        _roleDescription.SetText(roleData.describe);
+
+        bool isLocked = roleData.unlock == 0 && !SaveService.Instance.IsRoleUnlocked(roleData.name);
+        if (isLocked)
+        {
+            _roleImage.sprite = Resources.Load<Sprite>("Image/UI/锁");
+            _roleDescription.SetText(roleData.unlockConditions);
+            _roleName.SetText("???");
+            _recordText.SetText("尚无记录");
+        }
+        else
+        {
+            _roleImage.sprite = Resources.Load<Sprite>(roleData.avatar);
+            _recordText.SetText(GetRecord(SaveService.Instance.GetBestRecord(roleData.name)));
+        }
+    }
+
+    private string GetRecord(int record)
+    {
+        return record < 0 ? "尚无记录" : $"通关危险{record}";
+    }
+}
