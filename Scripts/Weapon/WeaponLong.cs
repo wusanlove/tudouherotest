@@ -12,8 +12,9 @@ public class WeaponLong: WeaponBase
         //获取方向
         Vector2 dir = (enemy.position - transform.position).normalized;
         
-        //音效
-        Instantiate(GameManager.Instance.shootMusic);
+        // 射击音效（key "shoot" 在 AudioRegistry 中配置）
+        EventCenter.Instance.EventTrigger<AudioPlayRequest>(
+            E_EventType.Audio_PlaySfx, new AudioPlayRequest { key = "shoot" });
         
         //创造子弹
         GameObject bullet = GenerateBullet(dir);

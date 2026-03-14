@@ -1,43 +1,56 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class GamePanel :BaseMgrMono<GamePanel>
-{   //TODO:使用BasePanel基类并优化UI管理器 统一管理UI面板的打开关闭
+/// <summary>
+/// 战斗 HUD 面板（View 层）。
+/// 监听 EventCenter 中的 HUD_MoneyChanged / HUD_HpChanged / HUD_ExpChanged 事件刷新显示，
+/// 不再被 Player/LevelControl 直接调用（解耦游戏逻辑层 ↔ UI 层）。
+/// </summary>
+public class GamePanel : BaseMgrMono<GamePanel>
+{
     public CanvasGroup _canvasGroup;
-    
-    public Slider _hpSlider;
-    public Slider _expSlider;
-    public TMP_Text _moenyCount; //金币
-    public TMP_Text _expCount; //等级 LV.0
-    public TMP_Text _hpCount; //生命值 10/15
-    public TMP_Text _countDown; //关卡倒计时 15
-    public TMP_Text _waveCount; //波次 15
+
+    public Slider       _hpSlider;
+    public Slider       _expSlider;
+    public TMP_Text     _moenyCount;
+    public TMP_Text     _expCount;
+    public TMP_Text     _hpCount;
+    public TMP_Text     _countDown;
+    public TMP_Text     _waveCount;
 
     public override void Awake()
     {
         base.Awake();
-        this.GetComponent<CanvasGroup>().alpha = 1;
-        this.GetComponent<CanvasGroup>().interactable = true;
-        this.GetComponent<CanvasGroup>().blocksRaycasts = true;
+        var cg = GetComponent<CanvasGroup>();
+        cg.alpha          = 1;
+        cg.interactable   = true;
+        cg.blocksRaycasts = true;
     }
 
-    // Start is called before the first frame update
-    void Start()
+    private void OnEnable()
     {
-        
-        //更新经验条
+        EventCenter.Instance.AddEventListener(E_EventType.HUD_MoneyChanged, RenewMoney);
+        EventCenter.Instance.AddEventListener(E_EventType.HUD_HpChanged,    RenewHp);
+        EventCenter.Instance.AddEventListener(E_EventType.HUD_ExpChanged,   RenewExp);
+    }
+
+    private void OnDisable()
+    {
+        EventCenter.Instance.RemoveEventListener(E_EventType.HUD_MoneyChanged, RenewMoney);
+        EventCenter.Instance.RemoveEventListener(E_EventType.HUD_HpChanged,    RenewHp);
+        EventCenter.Instance.RemoveEventListener(E_EventType.HUD_ExpChanged,   RenewExp);
+    }
+
+    private void Start()
+    {
         RenewExp();
-        //更新生命值
         RenewHp();
-        //更新金币
         RenewMoney();
-        //更新波次信息
         RenewWaveCount();
     }
+
+    // ── HUD 刷新方法（可被外部代码安全调用，也响应事件）──────────────────────
 
     public void RenewMoney()
     {
@@ -46,45 +59,36 @@ public class GamePanel :BaseMgrMono<GamePanel>
 
     public void RenewHp()
     {
-        _hpCount.text = GameManager.Instance.hp + "/" + GameManager.Instance.propData.maxHp;
-        _hpSlider.value = GameManager.Instance.hp / GameManager.Instance.propData.maxHp;
+        float hp    = GameManager.Instance.hp;
+        float maxHp = GameManager.Instance.propData.maxHp;
+        _hpCount.text    = $"{hp}/{maxHp}";
+        _hpSlider.value  = maxHp > 0 ? hp / maxHp : 0;
     }
 
     public void RenewExp()
     {
-        // 25, 12 2级 ,1   1/12 = 0.1
-        _expSlider.value = GameManager.Instance.exp % 12 / 12;
-        _expCount.text = "LV." + (int)(GameManager.Instance.exp / 12);
+        float exp = GameManager.Instance.exp;
+        _expSlider.value = exp % 12 / 12f;
+        _expCount.text   = $"LV.{(int)(exp / 12)}";
     }
-    
-    
 
-    // Update is called once per frame
-    void Update()
-    {
-      
-        RenewCountDown(LevelControl.Instance.waveTimer);
-    }
-    
-    //更新倒计时
     public void RenewCountDown(float time)
     {
-        _countDown.text = time.ToString("F0");
-
-        //最后5秒 颜色变成红色
-        if (time <= 5 )
-        {
-            _countDown.color = new Color(255 / 255f, 0, 0);
-        }
+        _countDown.text  = time.ToString("F0");
+        _countDown.color = time <= 5
+            ? new Color(1f, 0f, 0f)
+            : Color.white;
     }
-    
-    //更新波次
+
     public void RenewWaveCount()
     {
-        _waveCount.text = "第" + GameManager.Instance.currentWave.ToString() + "关";
+        _waveCount.text = $"第{GameManager.Instance.currentWave}关";
     }
-    
-    
-    
-    
+
+    private void Update()
+    {
+        // 倒计时需每帧更新，直接从 LevelControl 读（HUD 与 LevelControl 同场景，可接受）
+        if (LevelControl.Instance != null)
+            RenewCountDown(LevelControl.Instance.waveTimer);
+    }
 }

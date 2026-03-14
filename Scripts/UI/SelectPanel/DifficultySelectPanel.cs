@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
 using UnityEngine.U2D;
@@ -20,9 +19,8 @@ public class DifficultySelectPanel:BaseMgrMono<DifficultySelectPanel>
     {
         base.Awake(); 
         _canvasGroup = GetComponent<CanvasGroup>();
-        //给DifficultyDataList赋值
-        TextAsset difficultyTextAsset = Resources.Load<TextAsset>("Data/difficulty"); 
-        DifficultyDataList = JsonConvert.DeserializeObject<List<DifficultyData>>(difficultyTextAsset.text);
+        // 通过 ConfigService 集中加载难度数据
+        DifficultyDataList = ConfigService.Instance.LoadDifficulties();
         
         
     }

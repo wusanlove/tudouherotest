@@ -4,12 +4,10 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using Unity.VisualScripting;
-using Newtonsoft.Json;
 
     public class RoleSelectPanel : BaseMgrMono<RoleSelectPanel>
     {
         List<RoleData> roleDataList;
-        TextAsset roleTextAsset;
         [SerializeField] private GameObject _rolePrefab;
         public GameObject _roleDetailGameObject;
         [SerializeField] private Transform _roleListTransform;
@@ -30,9 +28,8 @@ using Newtonsoft.Json;
             // _roleImage = transform.Find("RoleDetail/Avator/imgRole").GetComponent<Image>();
             // _roleName = transform.Find("RoleDetail/txtRoleName").GetComponent<TextMeshProUGUI>();
             // _roleDescription = transform.Find("RoleDetail/txtRoleDescription").GetComponent<TextMeshProUGUI>();
-            //json数据加载
-            roleTextAsset = Resources.Load<TextAsset>("Data/role");
-            roleDataList = JsonConvert.DeserializeObject<List<RoleData>>(roleTextAsset.text);
+            // 通过 ConfigService 集中加载角色数据（替代直接 Resources.Load + JsonConvert）
+            roleDataList = ConfigService.Instance.LoadRoles();
         }
 
         private void Start()

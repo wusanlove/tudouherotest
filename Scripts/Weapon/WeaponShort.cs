@@ -109,8 +109,9 @@ public class WeaponShort: WeaponBase
                  // number.transform.position = transform.position;
                 
              }
-            //音效
-            Instantiate(GameManager.Instance.attackMusic);
+            // 近战攻击音效（key "attack" 在 AudioRegistry 中配置）
+            EventCenter.Instance.EventTrigger<AudioPlayRequest>(
+                E_EventType.Audio_PlaySfx, new AudioPlayRequest { key = "attack" });
             gameObject.GetComponent<CapsuleCollider2D>().enabled = false;
         }
     }

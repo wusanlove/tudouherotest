@@ -1,5 +1,4 @@
 using UnityEngine;using UnityEngine.EventSystems;
-using UnityEngine.SceneManagement;
 using UnityEngine.U2D;
 using UnityEngine.UI;
 public class DifficultyUI:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler
@@ -30,11 +29,11 @@ public class DifficultyUI:MonoBehaviour,IPointerEnterHandler,IPointerExitHandler
         _button.onClick.AddListener(() =>
         {
             //记录当前难度
-            GameManager.Instance.currentDifficulty=difficultyData;
+            GameManager.Instance.currentDifficulty = difficultyData;
             //关闭难度选择面板
             DifficultySelectPanel.Instance._canvasGroup.alpha = 0f;
-            //跳转游戏界面
-            SceneManager.LoadScene(2);
+            
+            EventCenter.Instance.EventTrigger(E_EventType.UI_ConfirmSelection);
            
             
         });

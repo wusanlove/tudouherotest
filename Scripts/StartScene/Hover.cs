@@ -40,6 +40,8 @@ public class UIHoverScaleTween : MonoBehaviour, IPointerEnterHandler, IPointerEx
     {
         _tween?.Kill(); // 避免快速进出导致叠加/抖动
         _tween = transform.DOScale(target, duration).SetEase(ease);
-        Instantiate(GameManager.Instance.menuMusic);//TODO:使用对象池销毁  优化声音重复问题
+        // 通过 AudioMgr 播放悬停音效（key "hover" 在 AudioRegistry 中配置）
+        EventCenter.Instance.EventTrigger<AudioPlayRequest>(
+            E_EventType.Audio_PlaySfx, new AudioPlayRequest { key = "hover" });
     }
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
-using Newtonsoft.Json;
 using TMPro;
 using Object = UnityEngine.Object;
 
@@ -25,9 +24,8 @@ public class WeaponSelectPanel : BaseMgrMono<WeaponSelectPanel>
     {
         base.Awake(); 
         _canvasGroup = GetComponent<CanvasGroup>();
-        //给weaponDataList赋值
-        TextAsset weaponTextAsset = Resources.Load<TextAsset>("Data/weapon"); 
-        weaponDataList = JsonConvert.DeserializeObject<List<WeaponData>>(weaponTextAsset.text);
+        // 通过 ConfigService 集中加载武器数据
+        weaponDataList = ConfigService.Instance.LoadWeapons();
         
         
     }

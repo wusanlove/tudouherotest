@@ -20,13 +20,17 @@ public class EnemyBase: MonoBehaviour
        
     }
 
-   public  void Start()
+   public void Start()
     {
-        foreach (var enemyData in GameManager.Instance.enemyDatas)
+        // EnemyFactory 在 Instantiate 之后会立即通过 enemy.enemyData = data.Clone() 赋值。
+        // 如果数据已由 Factory 设置，则跳过自动查找，避免覆盖精英/定制数据。
+        if (enemyData != null) return;
+
+        foreach (var data in GameManager.Instance.enemyDatas)
         {
-            if(enemyData.name==gameObject.name.Replace("(Clone)", "").Trim())
+            if (data.name == gameObject.name.Replace("(Clone)", "").Trim())
             {
-                Init(enemyData);
+                Init(data);
                 break;
             }
         }
@@ -213,17 +217,20 @@ public class EnemyBase: MonoBehaviour
     }
     
     //死亡
-    public void Dead()
+        public void Dead()
     {
-        //增加玩家经验值
+        // 增加玩家经验值
         GameManager.Instance.exp += enemyData.provideExp * GameManager.Instance.propData.expMuti;
-        GamePanel.Instance.RenewExp();
-        
+        // 通知 HUD 刷新经验（解耦 EnemyBase ↔ GamePanel）
+        EventCenter.Instance.EventTrigger(E_EventType.HUD_ExpChanged);
+
         // 掉落金币
-        Instantiate(GameManager.Instance.moeny_prefab, transform.position, Quaternion.identity);
-        
-        //销毁自己
+        if (GameManager.Instance.moeny_prefab != null)
+            Object.Instantiate(GameManager.Instance.moeny_prefab, transform.position, Quaternion.identity);
+
+        // 广播敌人死亡事件（成就/进度系统可监听）
+        EventCenter.Instance.EventTrigger<EnemyBase>(E_EventType.Battle_EnemyDied, this);
+
+        // 销毁自身
         Destroy(gameObject);
     }
-    
-}

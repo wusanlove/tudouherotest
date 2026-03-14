@@ -1,11 +1,10 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// 公共Mono模块管理器
+/// 公共Mono模块管理器（非MonoBehaviour单例）。
+/// 通过内部 MonoHelper 桥接 Unity 生命周期，支持 StartCoroutine 与帧更新事件委托。
 /// </summary>
 public class MonoMgr : BaseMgr<MonoMgr>
 {
@@ -13,77 +12,56 @@ public class MonoMgr : BaseMgr<MonoMgr>
     private event UnityAction fixedUpdateEvent;
     private event UnityAction lateUpdateEvent;
 
-    /// <summary>
-    /// 添加Update帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddUpdateListener(UnityAction updateFun)
+    /// <summary>Unity MonoBehaviour 桥接体，创建时自动 DontDestroyOnLoad。</summary>
+    private MonoHelper helper;
+
+    private MonoMgr()
     {
-        updateEvent += updateFun;
+        // 创建持久化 GameObject 作为生命周期载体
+        GameObject go = new GameObject("[MonoMgr]");
+        Object.DontDestroyOnLoad(go);
+        helper = go.AddComponent<MonoHelper>();
+        helper.Init(this);
     }
 
-    /// <summary>
-    /// 移除Update帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveUpdateListener(UnityAction updateFun)
-    {
-        updateEvent -= updateFun;
-    }
+    // ── Update 监听 ─────────────────────────────────────────────────────────
+    public void AddUpdateListener(UnityAction fun)    => updateEvent += fun;
+    public void RemoveUpdateListener(UnityAction fun) => updateEvent -= fun;
 
-    /// <summary>
-    /// 添加FixedUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddFixedUpdateListener(UnityAction updateFun)
-    {
-        fixedUpdateEvent += updateFun;
-    }
-    /// <summary>
-    /// 移除FixedUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveFixedUpdateListener(UnityAction updateFun)
-    {
-        fixedUpdateEvent -= updateFun;
-    }
+    // ── FixedUpdate 监听 ────────────────────────────────────────────────────
+    public void AddFixedUpdateListener(UnityAction fun)    => fixedUpdateEvent += fun;
+    public void RemoveFixedUpdateListener(UnityAction fun) => fixedUpdateEvent -= fun;
 
-    /// <summary>
-    /// 添加LateUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddLateUpdateListener(UnityAction updateFun)
-    {
-        lateUpdateEvent += updateFun;
-    }
+    // ── LateUpdate 监听 ─────────────────────────────────────────────────────
+    public void AddLateUpdateListener(UnityAction fun)    => lateUpdateEvent += fun;
+    public void RemoveLateUpdateListener(UnityAction fun) => lateUpdateEvent -= fun;
 
-    /// <summary>
-    /// 移除LateUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveLateUpdateListener(UnityAction updateFun)
-    {
-        lateUpdateEvent -= updateFun;
-    }
+    // ── 协程 ────────────────────────────────────────────────────────────────
+    /// <summary>通过 MonoHelper 启动协程。</summary>
+    public Coroutine StartCoroutine(IEnumerator enumerator)
+        => helper.StartCoroutine(enumerator);
 
+    /// <summary>停止一个已启动的协程。</summary>
+    public void StopCoroutine(Coroutine coroutine)
+        => helper.StopCoroutine(coroutine);
 
-    private void Update()
-    {
-        updateEvent?.Invoke();
-    }
+    // ── 由 MonoHelper 在每帧回调 ────────────────────────────────────────────
+    internal void OnUpdate()       => updateEvent?.Invoke();
+    internal void OnFixedUpdate()  => fixedUpdateEvent?.Invoke();
+    internal void OnLateUpdate()   => lateUpdateEvent?.Invoke();
+}
 
-    private void FixedUpdate()
-    {
-        fixedUpdateEvent?.Invoke();
-    }
+/// <summary>
+/// MonoMgr 的 MonoBehaviour 生命周期桥接体，由 MonoMgr 构造时自动创建。
+/// 不要手动挂载此组件。
+/// </summary>
+public class MonoHelper : MonoBehaviour
+{
+    private MonoMgr owner;
 
-    private void LateUpdate()
-    {
-        lateUpdateEvent?.Invoke();
-    }
+    internal void Init(MonoMgr mgr) => owner = mgr;
 
-    public  void StartCoroutine(IEnumerator enumerator)
-    {
-        throw new NotImplementedException();
-    }
+    private void Update()      => owner?.OnUpdate();
+    private void FixedUpdate() => owner?.OnFixedUpdate();
+    private void LateUpdate()  => owner?.OnLateUpdate();
 }
