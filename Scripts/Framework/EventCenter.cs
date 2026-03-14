@@ -140,7 +140,7 @@ public class EventCenter: BaseMgr<EventCenter>
     /// 清除指定某一个事件的所有监听
     /// </summary>
     /// <param name="eventName"></param>
-    public void Claer(E_EventType eventName)
+    public void Clear(E_EventType eventName)
     {
         if (eventDic.ContainsKey(eventName))
             eventDic.Remove(eventName);

@@ -111,16 +111,11 @@ public class LevelControl :BaseMgrMono<LevelControl>
                 {
                     if (e.name == waveData.enemyName)
                     {
-                        enemy.enemyData = e;
-                
-                        //判断是否为精英
-                        if (waveData.elite == 1)
-                        {
-                            enemy.SetElite();
-                        }
+                        enemy.Init(e);
+                        break;
                     }
-                }   //没必要直接 enemyawake时赋值data
-                
+                }
+
                 if (waveData.elite == 1)
                 {
                     enemy.SetElite();

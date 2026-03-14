@@ -57,6 +57,8 @@ class Player : BaseMgrMono<Player>
         reviveTimer += Time.deltaTime;
         if (reviveTimer >= 1f)
         {
+            reviveTimer = 0;
+
             //不扣血
             if (GameManager.Instance.propData.revive <= 0)
             {
@@ -75,9 +77,6 @@ class Player : BaseMgrMono<Player>
                     ,0,  GameManager.Instance.propData.maxHp);
             }
         }
-       
-        
-        reviveTimer = 0;
     }
 
     private void EatMoney()

@@ -243,6 +243,11 @@ public class ShopPanel : BaseMgrMono<ShopPanel>
 
     }
 
+    public void RefreshMoneyText()
+    {
+        _moneyText.text = GameManager.Instance.money.ToString();
+    }
+
     public bool Shopping(ItemData itemData)
     {
         if (GameManager.Instance.money < 3 )
