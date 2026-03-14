@@ -5,7 +5,7 @@ namespace SceneState
     /// </summary>
     public class ShopScene : ISceneState
     {
-        public ShopScene(SceneStateController controller) : base("04-Shop", controller) { }
+        public ShopScene(SceneStateController controller) : base(GameFlowController.Scene_Shop, controller) { }
 
         public override void StateStart()
         {

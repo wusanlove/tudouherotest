@@ -157,7 +157,6 @@ public class LevelControl : BaseMgrMono<LevelControl>
         {
             SaveService.Instance.UnlockRole("多面手");
             Debug.Log("多面手解锁");
-            SyncRoleUnlockToConfig("多面手");
         }
     }
 
@@ -180,12 +179,5 @@ public class LevelControl : BaseMgrMono<LevelControl>
     {
         yield return new WaitForSeconds(3f);
         GameFlowController.Instance.GoToMainMenu();
-    }
-
-    private void SyncRoleUnlockToConfig(string roleName)
-    {
-        var roles = ConfigService.Instance.Roles;
-        for (int i = 0; i < roles.Count; i++)
-            if (roles[i].name == roleName) { roles[i].unlock = 1; break; }
     }
 }

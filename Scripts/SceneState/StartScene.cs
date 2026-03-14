@@ -6,7 +6,7 @@ namespace SceneState
     /// </summary>
     public class StartScene : ISceneState
     {
-        public StartScene(SceneStateController controller) : base("01-MainMenu", controller) { }
+        public StartScene(SceneStateController controller) : base(GameFlowController.Scene_MainMenu, controller) { }
 
         public override void StateStart()
         {

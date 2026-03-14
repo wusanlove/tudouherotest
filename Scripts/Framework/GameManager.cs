@@ -70,13 +70,9 @@ public class GameManager : BaseMgrMono<GameManager>
 
     private void InitUnlockStates()
     {
-        // 使用 SaveService 统一管理，保留向后兼容
-        var save = SaveService.Instance;
-        // 首次运行默认锁定
-        if (!PlayerPrefs.HasKey("Unlock_多面手"))
-            PlayerPrefs.SetInt("Unlock_多面手", 0);
-        if (!PlayerPrefs.HasKey("Unlock_公牛"))
-            PlayerPrefs.SetInt("Unlock_公牛", 0);
+        // SaveService 使用 HasKey 检查，只会在首次运行时写入默认值
+        // 这里只需确保 SaveService 已初始化（访问 Instance 即可触发构造）
+        _ = SaveService.Instance;
     }
 
     /// <summary>根据角色特性初始化运行时 PropData，游戏开始第一波时调用一次</summary>

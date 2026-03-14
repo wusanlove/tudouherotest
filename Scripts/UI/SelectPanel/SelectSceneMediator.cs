@@ -52,10 +52,7 @@ public class SelectSceneMediator : BaseMgrMono<SelectSceneMediator>
         Show(weaponPanel._canvasGroup);
         Hide(difficultyPanel._canvasGroup);
 
-        // 将角色详情克隆到武器面板的 Detail 区域
-        if (rolePanel._roleDetailGameObject != null && weaponPanel._weaponDetailTransform != null)
-            Object.Instantiate(rolePanel._roleDetailGameObject, weaponPanel._weaponDetailTransform);
-
+        CloneDetail(rolePanel._roleDetailGameObject, weaponPanel._weaponDetailTransform);
         weaponPanel._weaponDetailGameObject?.SetActive(true);
     }
 
@@ -68,12 +65,8 @@ public class SelectSceneMediator : BaseMgrMono<SelectSceneMediator>
         Hide(weaponPanel._canvasGroup);
         Show(difficultyPanel._canvasGroup);
 
-        // 将角色 + 武器详情克隆到难度面板的 Detail 区域
-        if (rolePanel._roleDetailGameObject != null && difficultyPanel._difficultyDetailTransform != null)
-            Object.Instantiate(rolePanel._roleDetailGameObject, difficultyPanel._difficultyDetailTransform);
-        if (weaponPanel._weaponDetailGameObject != null && difficultyPanel._difficultyDetailTransform != null)
-            Object.Instantiate(weaponPanel._weaponDetailGameObject, difficultyPanel._difficultyDetailTransform);
-
+        CloneDetail(rolePanel._roleDetailGameObject,  difficultyPanel._difficultyDetailTransform);
+        CloneDetail(weaponPanel._weaponDetailGameObject, difficultyPanel._difficultyDetailTransform);
         difficultyPanel._difficultyDetailGameObject?.SetActive(true);
     }
 
@@ -88,6 +81,13 @@ public class SelectSceneMediator : BaseMgrMono<SelectSceneMediator>
     }
 
     // ── 工具方法 ─────────────────────────────────────────
+    /// <summary>将 source 克隆并挂在 target 下（空安全）</summary>
+    private static void CloneDetail(GameObject source, Transform target)
+    {
+        if (source != null && target != null)
+            Object.Instantiate(source, target);
+    }
+
     private static void Show(CanvasGroup cg)
     {
         if (cg == null) return;

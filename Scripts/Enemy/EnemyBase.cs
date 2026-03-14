@@ -20,7 +20,9 @@ public class EnemyBase : MonoBehaviour
 
     public void Start()
     {
-        // 按名称在 ConfigService 缓存中找到对应数据
+        // EnemyFactory.Spawn() 已调用 Init()；此处为直接 Instantiate 的后备路径
+        if (enemyData != null) return;
+
         foreach (var data in ConfigService.Instance.Enemies)
         {
             if (data.name == gameObject.name.Replace("(Clone)", "").Trim())

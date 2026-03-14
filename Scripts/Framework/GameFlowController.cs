@@ -11,6 +11,13 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class GameFlowController : BaseMgrMono<GameFlowController>
 {
+    // ── 场景名称常量 ──────────────────────────────────────
+    // 修改场景名时只需改这里，所有跳转自动同步
+    public const string Scene_MainMenu   = "01-MainMenu";
+    public const string Scene_LevelSelect = "02-LevelSelect";
+    public const string Scene_GamePlay   = "03-GamePlay";
+    public const string Scene_Shop       = "04-Shop";
+
     // SceneStateController 由 GameFlowController 独占
     private SceneState.SceneStateController _stateCtrl;
 
@@ -43,9 +50,8 @@ public class GameFlowController : BaseMgrMono<GameFlowController>
     // ── 初始化入口（在 GameManager.Awake 后调用一次）────────
     public void StartGame()
     {
-        // 如果当前已在主菜单场景则不重新加载，直接 Start
         string current = SceneManager.GetActiveScene().name;
-        if (current == "01-MainMenu")
+        if (current == Scene_MainMenu)
             _stateCtrl.SetState(new SceneState.StartScene(_stateCtrl), false);
         else
             GoToMainMenu();

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,6 +12,10 @@ using Random = UnityEngine.Random;
 /// </summary>
 public class ShopPanel : BaseMgrMono<ShopPanel>
 {
+    private const int RefreshCost     = 3;
+    private const int MinPropItems    = 2;
+    private const int TotalShopItems  = 4;
+
     public Button   _startButton;
     public Button   _refreshButton;
     public TMP_Text _shopText;
@@ -26,10 +29,19 @@ public class ShopPanel : BaseMgrMono<ShopPanel>
 
     public List<ItemData> props = new List<ItemData>();
 
+    // 缓存属性面板的 TMP_Text 引用，避免 SetAttrUI 每次 GetComponent
+    private TMP_Text[] _attrTexts;
+
     public override void Awake()
     {
         base.Awake();
         _refreshButton.onClick.AddListener(RefreshItem);
+
+        // 缓存属性面板 TMP_Text 引用
+        int count = _attrLayout.childCount;
+        _attrTexts = new TMP_Text[count];
+        for (int i = 0; i < count; i++)
+            _attrTexts[i] = _attrLayout.GetChild(i).GetChild(2).GetComponent<TMP_Text>();
     }
 
     private void Start()
@@ -58,27 +70,27 @@ public class ShopPanel : BaseMgrMono<ShopPanel>
 
     private void RefreshItem()
     {
-        if (GameManager.Instance.money < 3) return;
-        GameManager.Instance.money -= 3;
+        if (GameManager.Instance.money < RefreshCost) return;
+        GameManager.Instance.money -= RefreshCost;
         _moneyText.text = GameManager.Instance.money.ToString();
         RandomProps();
     }
 
     private void SetAttrUI()
     {
-        TMP_Text Get(int row) => _attrLayout.GetChild(row).GetChild(2).GetComponent<TMP_Text>();
+        if (_attrTexts == null || _attrTexts.Length < 11) return;
         PropData p = GameManager.Instance.propData;
-        Get(0).text  = ((int)(GameManager.Instance.exp / 12)).ToString();
-        Get(1).text  = p.maxHp.ToString();
-        Get(2).text  = p.revive.ToString();
-        Get(3).text  = p.short_damage.ToString();
-        Get(4).text  = p.long_damage.ToString();
-        Get(5).text  = p.critical_strikes_probability.ToString();
-        Get(6).text  = p.pickRange.ToString();
-        Get(7).text  = p.speedPer.ToString();
-        Get(8).text  = p.harvest.ToString();
-        Get(9).text  = p.expMuti.ToString();
-        Get(10).text = p.shopDiscount.ToString();
+        _attrTexts[0].text  = ((int)(GameManager.Instance.exp / 12)).ToString();
+        _attrTexts[1].text  = p.maxHp.ToString();
+        _attrTexts[2].text  = p.revive.ToString();
+        _attrTexts[3].text  = p.short_damage.ToString();
+        _attrTexts[4].text  = p.long_damage.ToString();
+        _attrTexts[5].text  = p.critical_strikes_probability.ToString();
+        _attrTexts[6].text  = p.pickRange.ToString();
+        _attrTexts[7].text  = p.speedPer.ToString();
+        _attrTexts[8].text  = p.harvest.ToString();
+        _attrTexts[9].text  = p.expMuti.ToString();
+        _attrTexts[10].text = p.shopDiscount.ToString();
     }
 
     private void ShowCurrentProp()
@@ -131,13 +143,13 @@ public class ShopPanel : BaseMgrMono<ShopPanel>
     private void RandomProps()
     {
         props.Clear();
-        int propCount  = Random.Range(2, 4);
+        int propCount  = Random.Range(MinPropItems, TotalShopItems);
         var allProps   = ConfigService.Instance.Props;
         var allWeapons = ConfigService.Instance.Weapons;
 
         for (int i = 0; i < propCount; i++)
             props.Add(allProps[Random.Range(0, allProps.Count)]);
-        for (int i = 0; i < 4 - propCount; i++)
+        for (int i = 0; i < TotalShopItems - propCount; i++)
             props.Add(allWeapons[Random.Range(0, allWeapons.Count)]);
 
         ShowPropUI();

@@ -33,7 +33,6 @@ class Player : BaseMgrMono<Player>
             {
                 SaveService.Instance.UnlockRole("公牛");
                 Debug.Log("公牛解锁");
-                SyncRoleUnlockToConfig("公牛");
             }
         }
     }
@@ -136,13 +135,5 @@ class Player : BaseMgrMono<Player>
     {
         yield return new WaitForSeconds(2f);
         LevelControl.Instance.BadGame();
-    }
-
-    // ── 工具：同步解锁状态到 ConfigService 缓存的 RoleData ─
-    private void SyncRoleUnlockToConfig(string roleName)
-    {
-        var roles = ConfigService.Instance.Roles;
-        for (int i = 0; i < roles.Count; i++)
-            if (roles[i].name == roleName) { roles[i].unlock = 1; break; }
     }
 }

@@ -5,7 +5,7 @@ namespace SceneState
     /// </summary>
     public class SelectSecene : ISceneState
     {
-        public SelectSecene(SceneStateController controller) : base("02-LevelSelect", controller) { }
+        public SelectSecene(SceneStateController controller) : base(GameFlowController.Scene_LevelSelect, controller) { }
 
         public override void StateStart()
         {

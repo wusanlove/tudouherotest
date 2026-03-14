@@ -18,23 +18,20 @@ public class RoleUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         _backImage = GetComponent<Image>();
         _avatar    = transform.GetChild(0).GetComponent<Image>();
         _button    = GetComponent<Button>();
+        _button.onClick.AddListener(OnClick);
     }
 
     public void SetRoleData(RoleData data)
     {
         this.roleData = data;
-
         bool isLocked = data.unlock == 0 && !SaveService.Instance.IsRoleUnlocked(data.name);
         _avatar.sprite = isLocked
             ? Resources.Load<Sprite>("Image/UI/锁")
             : Resources.Load<Sprite>(data.avatar);
-
-        _button.onClick.AddListener(() =>
-        {
-            // 只抛出事件，面板切换由 SelectSceneMediator 处理
-            EventCenter.Instance.EventTrigger(E_EventType.Select_RoleChosen, data);
-        });
     }
+
+    private void OnClick()
+        => EventCenter.Instance.EventTrigger(E_EventType.Select_RoleChosen, roleData);
 
     public void OnPointerEnter(PointerEventData eventData)
     {

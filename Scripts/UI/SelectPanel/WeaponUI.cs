@@ -17,6 +17,7 @@ public class WeaponUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         _backImage = GetComponent<Image>();
         _avatar    = transform.GetChild(0).GetComponent<Image>();
         _button    = GetComponent<Button>();
+        _button.onClick.AddListener(OnClick);
     }
 
     public void SetWeaponData(WeaponData data)
@@ -24,12 +25,10 @@ public class WeaponUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         this.weaponData = data;
         if (data != null)
             _avatar.sprite = Resources.Load<Sprite>(data.avatar);
-
-        _button.onClick.AddListener(() =>
-        {
-            EventCenter.Instance.EventTrigger(E_EventType.Select_WeaponChosen, data);
-        });
     }
+
+    private void OnClick()
+        => EventCenter.Instance.EventTrigger(E_EventType.Select_WeaponChosen, weaponData);
 
     public void OnPointerEnter(PointerEventData eventData)
     {
