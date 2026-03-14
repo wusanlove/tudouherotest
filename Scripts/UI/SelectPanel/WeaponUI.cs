@@ -1,58 +1,49 @@
-using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+/// <summary>
+/// 武器列表中的单个武器卡。
+/// 点击后只负责存数据 + 发事件，不直接操作其他面板。
+/// 面板间切换由 WeaponSelectPanel 的事件处理函数统一完成。
+/// </summary>
 public class WeaponUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     public WeaponData weaponData;
-    public Image _backImage;
-    private Image _avatar;
-    private Button _button;
-    private void Awake()    
+    public Image      _backImage;
+    private Image     _avatar;
+    private Button    _button;
+
+    private void Awake()
     {
-        
         _backImage = GetComponent<Image>();
-        _avatar = transform.GetChild(0).GetComponent<Image>();
-        _button = GetComponent<Button>();
+        _avatar    = transform.GetChild(0).GetComponent<Image>();
+        _button    = GetComponent<Button>();
     }
 
-
-    public void SetWeaponData(WeaponData weaponData)
+    public void SetWeaponData(WeaponData data)
     {
-        if (weaponData != null)
-        {
-            this.weaponData = weaponData;
-            _avatar.sprite= Resources.Load<Sprite>(weaponData.avatar);
-            
-        }
-        _button.onClick.AddListener(() =>
-        {
-            //记录当前武器
-            GameManager.Instance.currentWeapons.Add(weaponData);
-            //关闭武器选择面板
-            WeaponSelectPanel.Instance._canvasGroup.alpha = 0f;
-            WeaponSelectPanel.Instance._canvasGroup.blocksRaycasts = false;
-            WeaponSelectPanel.Instance._canvasGroup.interactable = false;
-            //打开难度选择面板
-            DifficultySelectPanel.Instance._canvasGroup.alpha = 1f;
-            DifficultySelectPanel.Instance._canvasGroup.blocksRaycasts = true;
-            DifficultySelectPanel.Instance._canvasGroup.interactable = true;
-            //克隆角色 武器UI 激活难度UI
-            Instantiate(RoleSelectPanel.Instance._roleDetailGameObject, DifficultySelectPanel.Instance._difficultyDetailTransform);
-            Instantiate(WeaponSelectPanel.Instance._weaponDetailGameObject, DifficultySelectPanel.Instance._difficultyDetailTransform);
-            DifficultySelectPanel.Instance._difficultyDetailGameObject.SetActive(true);
-        });
+        weaponData     = data;
+        _avatar.sprite = Resources.Load<Sprite>(data.avatar);
+
+        _button.onClick.AddListener(() => OnWeaponButtonClick(data));
     }
+
+    private void OnWeaponButtonClick(WeaponData data)
+    {
+        GameManager.Instance.currentWeapons.Add(data);
+        // 通知面板层处理跳转（解耦：本脚本不再依赖 WeaponSelectPanel / DifficultySelectPanel）
+        EventCenter.Instance.EventTrigger(E_EventType.Select_WeaponChosen, data);
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
-        _backImage.color = new Color(207/255f, 207/255f , 207/255f);
+        _backImage.color = new Color(207 / 255f, 207 / 255f, 207 / 255f);
         WeaponSelectPanel.Instance.RenewUI(weaponData);
     }
+
     public void OnPointerExit(PointerEventData eventData)
     {
-        _backImage.color = new Color(34/255f, 34/255f , 34/255f);
-        
+        _backImage.color = new Color(34 / 255f, 34 / 255f, 34 / 255f);
     }
 }
-

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 
@@ -173,17 +172,15 @@ public class LevelControl :BaseMgrMono<LevelControl>
 
     }
     
-   // 进入下一关
      private void NextWave()
      {
-         GameManager.Instance.money += GameManager.Instance.propData.harvest; //收获添加到金币中
-         GameManager.Instance.currentWave += 1; //波次+1
-         if(GameManager.Instance.currentWave <= GameManager.Instance.maxWave)
-            SceneManager.LoadScene("04-Shop");  //跳转商店
+         GameManager.Instance.money += GameManager.Instance.propData.harvest;
+         GameManager.Instance.currentWave += 1;
+         if (GameManager.Instance.currentWave <= GameManager.Instance.maxWave)
+             // 触发进入商店，由 SceneStateController 统一处理场景切换
+             EventCenter.Instance.EventTrigger(E_EventType.Scene_GoToShop);
          else
-         {
              GoodGame();
-         }
      }
 
     
@@ -246,6 +243,7 @@ public class LevelControl :BaseMgrMono<LevelControl>
      IEnumerator GoMenu()
      {
          yield return new WaitForSeconds(3);
-         SceneManager.LoadScene(0);
+         // 触发返回主菜单，由 SceneStateController 统一处理场景切换
+         EventCenter.Instance.EventTrigger(E_EventType.Scene_GoToMenu);
      }
 }
