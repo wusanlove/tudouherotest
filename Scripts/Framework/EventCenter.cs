@@ -1,96 +1,85 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
-/// <summary>
-/// 用于 里式替换原则 装载 子类的父类
-/// </summary>
-public abstract class EventInfoBase{ }
+/// <summary>里式替换载体基类（无泛型参数）。</summary>
+public abstract class EventInfoBase { }
 
-/// <summary>
-/// 用来包裹 对应观察者 函数委托的 类
-/// </summary>
-/// <typeparam name="T"></typeparam>
-public class EventInfo<T>:EventInfoBase
+/// <summary>带泛型参数的事件包装，持有带参委托列表。</summary>
+public class EventInfo<T> : EventInfoBase
 {
-    //真正观察者 对应的 函数信息 记录在其中
     public UnityAction<T> actions;
-
-    public EventInfo(UnityAction<T> action)
-    {
-        actions += action;
-    }
+    public EventInfo(UnityAction<T> action) => actions += action;
 }
 
-/// <summary>
-/// 主要用来记录无参无返回值委托
-/// </summary>
-public class EventInfo: EventInfoBase
+/// <summary>无参数事件包装。</summary>
+public class EventInfo : EventInfoBase
 {
     public UnityAction actions;
-
-    public EventInfo(UnityAction action)
-    {
-        actions += action;
-    }
+    public EventInfo(UnityAction action) => actions += action;
 }
 
-
 /// <summary>
-/// 事件中心模块 
+/// 事件中心 —— 跨系统广播用（金币/血量变化、波次开始/结束等）。
+/// 不应在此驱动"打开哪个面板/切哪个场景"，那是 SceneStateController 的职责。
+/// TODO: 演进方向 → 泛型 IEventBus 接口 + DI 注入，彻底去除静态单例。
 /// </summary>
-public class EventCenter: BaseMgr<EventCenter>
+public class EventCenter : BaseMgr<EventCenter>
 {
-    private  EventCenter()
-    {
+    private EventCenter() { }
 
-    }
-    //用于记录对应事件 关联的 对应的逻辑
-    private Dictionary<E_EventType, EventInfoBase> eventDic = new Dictionary<E_EventType, EventInfoBase>();
+    private readonly Dictionary<E_EventType, EventInfoBase> eventDic =
+        new Dictionary<E_EventType, EventInfoBase>();
 
-    //private EventCenter() { }
+    // ── 触发 ──────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 触发事件 
-    /// </summary>
-    /// <param name="eventName">事件名字</param>
     public void EventTrigger<T>(E_EventType eventName, T info)
     {
-        //存在关心我的人 才通知别人去处理逻辑
-        if(eventDic.ContainsKey(eventName))
+        if (!eventDic.TryGetValue(eventName, out var raw)) return;
+
+        var typed = raw as EventInfo<T>;
+        if (typed == null)
         {
-            //去执行对应的逻辑
-            (eventDic[eventName] as EventInfo<T>).actions?.Invoke(info);
+            // 类型不匹配：常见于同一事件用不同 T 注册，编辑器下明确提示
+#if UNITY_EDITOR
+            Debug.LogError($"[EventCenter] 事件 {eventName} 类型不匹配，" +
+                           $"期望 EventInfo<{typeof(T).Name}>，实际 {raw.GetType().Name}");
+#endif
+            return;
         }
+        typed.actions?.Invoke(info);
     }
 
-    /// <summary>
-    /// 触发事件 无参数
-    /// </summary>
-    /// <param name="eventName"></param>
     public void EventTrigger(E_EventType eventName)
     {
-        //存在关心我的人 才通知别人去处理逻辑
-        if (eventDic.ContainsKey(eventName))
+        if (!eventDic.TryGetValue(eventName, out var raw)) return;
+
+        var typed = raw as EventInfo;
+        if (typed == null)
         {
-            //去执行对应的逻辑
-            (eventDic[eventName] as EventInfo).actions?.Invoke();
+#if UNITY_EDITOR
+            Debug.LogError($"[EventCenter] 事件 {eventName} 类型不匹配，期望无参 EventInfo，实际 {raw.GetType().Name}");
+#endif
+            return;
         }
+        typed.actions?.Invoke();
     }
 
+    // ── 订阅 ──────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 添加事件监听者
-    /// </summary>
-    /// <param name="eventName"></param>
-    /// <param name="func"></param>
     public void AddEventListener<T>(E_EventType eventName, UnityAction<T> func)
     {
-        //如果已经存在关心事件的委托记录 直接添加即可
-        if (eventDic.ContainsKey(eventName))
+        if (eventDic.TryGetValue(eventName, out var raw))
         {
-            (eventDic[eventName] as EventInfo<T>).actions += func;
+            var typed = raw as EventInfo<T>;
+            if (typed == null)
+            {
+#if UNITY_EDITOR
+                Debug.LogError($"[EventCenter] AddEventListener 类型不匹配：{eventName}");
+#endif
+                return;
+            }
+            typed.actions += func;
         }
         else
         {
@@ -100,10 +89,17 @@ public class EventCenter: BaseMgr<EventCenter>
 
     public void AddEventListener(E_EventType eventName, UnityAction func)
     {
-        //如果已经存在关心事件的委托记录 直接添加即可
-        if (eventDic.ContainsKey(eventName))
+        if (eventDic.TryGetValue(eventName, out var raw))
         {
-            (eventDic[eventName] as EventInfo).actions += func;
+            var typed = raw as EventInfo;
+            if (typed == null)
+            {
+#if UNITY_EDITOR
+                Debug.LogError($"[EventCenter] AddEventListener 类型不匹配：{eventName}");
+#endif
+                return;
+            }
+            typed.actions += func;
         }
         else
         {
@@ -111,38 +107,35 @@ public class EventCenter: BaseMgr<EventCenter>
         }
     }
 
-    /// <summary>
-    /// 移除事件监听者
-    /// </summary>
-    /// <param name="eventName"></param>
-    /// <param name="func"></param>
+    // ── 取消订阅 ──────────────────────────────────────────────────────────
+
     public void RemoveEventListener<T>(E_EventType eventName, UnityAction<T> func)
     {
-        if (eventDic.ContainsKey(eventName))
-            (eventDic[eventName] as EventInfo<T>).actions -= func;
+        if (eventDic.TryGetValue(eventName, out var raw) && raw is EventInfo<T> typed)
+            typed.actions -= func;
     }
 
     public void RemoveEventListener(E_EventType eventName, UnityAction func)
     {
-        if (eventDic.ContainsKey(eventName))
-            (eventDic[eventName] as EventInfo).actions -= func;
+        if (eventDic.TryGetValue(eventName, out var raw) && raw is EventInfo typed)
+            typed.actions -= func;
     }
 
-    /// <summary>
-    /// 清空所有事件的监听
-    /// </summary>
+    // ── 清理 ──────────────────────────────────────────────────────────────
+
+    /// <summary>清除指定事件的全部监听（常用于切场景前清理）。</summary>
+    public void ClearEvent(E_EventType eventName)
+    {
+        eventDic.Remove(eventName);
+    }
+
+    /// <summary>清空所有事件（谨慎使用，会断开所有系统的监听）。</summary>
     public void Clear()
     {
         eventDic.Clear();
     }
 
-    /// <summary>
-    /// 清除指定某一个事件的所有监听
-    /// </summary>
-    /// <param name="eventName"></param>
-    public void Claer(E_EventType eventName)
-    {
-        if (eventDic.ContainsKey(eventName))
-            eventDic.Remove(eventName);
-    }
+    /// <summary>已废弃，请改用 ClearEvent。</summary>
+    [System.Obsolete("拼写错误遗留，请使用 ClearEvent(eventName)")]
+    public void Claer(E_EventType eventName) => ClearEvent(eventName);
 }

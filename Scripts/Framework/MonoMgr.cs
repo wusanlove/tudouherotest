@@ -1,89 +1,57 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// 公共Mono模块管理器
+/// Mono 生命周期代理 —— 为纯 C# 管理器提供 Update 事件与协程能力。
+/// 自动在首次访问时创建隐藏 GameObject，跨场景持久。
+/// TODO: 演进方向 → 用 PlayerLoopSystem 注入自定义 loop，彻底去除 GameObject 依赖。
 /// </summary>
-public class MonoMgr : BaseMgr<MonoMgr>
+public class MonoMgr : MonoBehaviour
 {
+    private static MonoMgr instance;
+
+    public static MonoMgr Instance
+    {
+        get
+        {
+            if (instance == null)
+            {
+                var go = new GameObject("[MonoMgr]");
+                instance = go.AddComponent<MonoMgr>();
+                DontDestroyOnLoad(go);
+            }
+            return instance;
+        }
+    }
+
+    private void Awake()
+    {
+        if (instance != null && instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
     private event UnityAction updateEvent;
     private event UnityAction fixedUpdateEvent;
     private event UnityAction lateUpdateEvent;
 
-    /// <summary>
-    /// 添加Update帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddUpdateListener(UnityAction updateFun)
-    {
-        updateEvent += updateFun;
-    }
+    public void AddUpdateListener(UnityAction fn) => updateEvent += fn;
+    public void RemoveUpdateListener(UnityAction fn) => updateEvent -= fn;
 
-    /// <summary>
-    /// 移除Update帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveUpdateListener(UnityAction updateFun)
-    {
-        updateEvent -= updateFun;
-    }
+    public void AddFixedUpdateListener(UnityAction fn) => fixedUpdateEvent += fn;
+    public void RemoveFixedUpdateListener(UnityAction fn) => fixedUpdateEvent -= fn;
 
-    /// <summary>
-    /// 添加FixedUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddFixedUpdateListener(UnityAction updateFun)
-    {
-        fixedUpdateEvent += updateFun;
-    }
-    /// <summary>
-    /// 移除FixedUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveFixedUpdateListener(UnityAction updateFun)
-    {
-        fixedUpdateEvent -= updateFun;
-    }
+    public void AddLateUpdateListener(UnityAction fn) => lateUpdateEvent += fn;
+    public void RemoveLateUpdateListener(UnityAction fn) => lateUpdateEvent -= fn;
 
-    /// <summary>
-    /// 添加LateUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void AddLateUpdateListener(UnityAction updateFun)
-    {
-        lateUpdateEvent += updateFun;
-    }
+    // StartCoroutine is inherited from MonoBehaviour — no override needed.
 
-    /// <summary>
-    /// 移除LateUpdate帧更新监听函数
-    /// </summary>
-    /// <param name="updateFun"></param>
-    public void RemoveLateUpdateListener(UnityAction updateFun)
-    {
-        lateUpdateEvent -= updateFun;
-    }
-
-
-    private void Update()
-    {
-        updateEvent?.Invoke();
-    }
-
-    private void FixedUpdate()
-    {
-        fixedUpdateEvent?.Invoke();
-    }
-
-    private void LateUpdate()
-    {
-        lateUpdateEvent?.Invoke();
-    }
-
-    public  void StartCoroutine(IEnumerator enumerator)
-    {
-        throw new NotImplementedException();
-    }
+    private void Update() => updateEvent?.Invoke();
+    private void FixedUpdate() => fixedUpdateEvent?.Invoke();
+    private void LateUpdate() => lateUpdateEvent?.Invoke();
 }

@@ -17,7 +17,7 @@ class Player : BaseMgrMono<Player>
         playerVisualTransform.GetComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>(GameManager.Instance.currentRoleData.avatar);
         // 初始化代码
         GameManager.Instance.weaponsPos = weaponsPos;
-        if(GameManager.Instance.waveCount==1)
+        if (GameManager.Instance.currentWave == 1)
             GameManager.Instance.InitProp();
     }
 

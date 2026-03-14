@@ -5,7 +5,6 @@ using System.ComponentModel;
 using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
@@ -43,7 +42,8 @@ public class ShopPanel : BaseMgrMono<ShopPanel>
         //开始按钮
         _startButton.transform.GetChild(0).GetComponent<TMP_Text>().text =
             "出发 (第" + (GameManager.Instance.currentWave) + "波)";
-        _startButton.onClick.AddListener(() => { SceneManager.LoadScene("03-GamePlay"); });
+        _startButton.onClick.AddListener(() =>
+            EventCenter.Instance.EventTrigger(E_EventType.Scene_ToGamePlay));
         //金币值
         _moneyText.text = GameManager.Instance.money.ToString();
 
