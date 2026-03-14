@@ -86,6 +86,8 @@ public class EventCenter : BaseMgr<EventCenter>
     /// <summary>注册一次性监听，触发后自动移除，减少忘记取消订阅的泄漏风险。</summary>
     public void AddOnceListener<T>(E_EventType eventName, UnityAction<T> func)
     {
+        // wrapper 先赋 null 是为了让 lambda 能在闭包中捕获自身引用，
+        // 从而在触发后通过 RemoveEventListener 将自己移除（自引用闭包惯用写法）。
         UnityAction<T> wrapper = null;
         wrapper = arg =>
         {
@@ -98,6 +100,7 @@ public class EventCenter : BaseMgr<EventCenter>
     /// <summary>注册无参一次性监听。</summary>
     public void AddOnceListener(E_EventType eventName, UnityAction func)
     {
+        // 同上：null 先占位，lambda 通过闭包捕获 wrapper 后自行注销。
         UnityAction wrapper = null;
         wrapper = () =>
         {

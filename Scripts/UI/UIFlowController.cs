@@ -53,10 +53,11 @@ public class UIFlowController : BaseMgr<UIFlowController>
         {
             SetPanelVisible(weaponPanel._canvasGroup, true);
 
-            // 把角色详情克隆到武器面板的详情区（视觉连续性）
+            // 把角色详情克隆到武器面板的详情区（清除旧克隆，防止重复选角时积累）
             var rolePanel = RoleSelectPanel.Instance;
             if (rolePanel?._roleDetailGameObject != null && weaponPanel._weaponDetailTransform != null)
             {
+                ClearChildren(weaponPanel._weaponDetailTransform);
                 Object.Instantiate(rolePanel._roleDetailGameObject, weaponPanel._weaponDetailTransform);
                 if (weaponPanel._weaponDetailGameObject != null)
                     weaponPanel._weaponDetailGameObject.SetActive(true);
@@ -77,9 +78,10 @@ public class UIFlowController : BaseMgr<UIFlowController>
         {
             SetPanelVisible(diffPanel._canvasGroup, true);
 
-            // 把角色 & 武器详情克隆到难度面板详情区
+            // 把角色 & 武器详情克隆到难度面板详情区（清除旧克隆）
             var rolePanel   = RoleSelectPanel.Instance;
             var weaponPanel = WeaponSelectPanel.Instance;
+            ClearChildren(diffPanel._difficultyDetailTransform);
             if (rolePanel?._roleDetailGameObject != null && diffPanel._difficultyDetailTransform != null)
                 Object.Instantiate(rolePanel._roleDetailGameObject, diffPanel._difficultyDetailTransform);
             if (weaponPanel?._weaponDetailGameObject != null && diffPanel._difficultyDetailTransform != null)
@@ -98,7 +100,8 @@ public class UIFlowController : BaseMgr<UIFlowController>
 
     private void OnNextWaveClicked()
     {
-        EventCenter.Instance.EventTrigger(E_EventType.Flow_GoToShop);
+        // 商店"出发"按钮 → 回到 GamePlay（下一波）
+        EventCenter.Instance.EventTrigger(E_EventType.Flow_GoToGamePlay);
     }
 
     // ── 辅助 ─────────────────────────────────────────────────────
@@ -109,5 +112,13 @@ public class UIFlowController : BaseMgr<UIFlowController>
         cg.alpha            = visible ? 1f : 0f;
         cg.interactable     = visible;
         cg.blocksRaycasts   = visible;
+    }
+
+    /// <summary>销毁 Transform 下所有子物体（防止重复克隆详情 UI 时积累）。</summary>
+    private static void ClearChildren(Transform parent)
+    {
+        if (parent == null) return;
+        for (int i = parent.childCount - 1; i >= 0; i--)
+            Object.Destroy(parent.GetChild(i).gameObject);
     }
 }

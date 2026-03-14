@@ -174,7 +174,11 @@ public class LevelControl : BaseMgrMono<LevelControl>
 
         if (waveTimer <= 0 || GameManager.Instance.isDead) yield break;
 
-        if (!enemyPrefabDic.TryGetValue(waveData.enemyName, out GameObject prefab)) yield break;
+        if (!enemyPrefabDic.TryGetValue(waveData.enemyName, out GameObject prefab))
+        {
+            Debug.LogWarning($"[LevelControl] 找不到敌人预制体：{waveData.enemyName}，跳过生成。");
+            yield break;
+        }
 
         EnemyBase enemy = Instantiate(prefab, pos, Quaternion.identity).GetComponent<EnemyBase>();
         enemy.transform.SetParent(enemyFather);

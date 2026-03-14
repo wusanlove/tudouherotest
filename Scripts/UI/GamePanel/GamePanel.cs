@@ -56,8 +56,16 @@ public class GamePanel : BaseMgrMono<GamePanel>
     private void OnHpChanged(float hp)
     {
         float maxHp = GameManager.Instance.propData.maxHp;
-        _hpCount.text    = hp + "/" + maxHp;
-        _hpSlider.value  = maxHp > 0 ? hp / maxHp : 0;
+        if (maxHp <= 0)
+        {
+            _hpCount.text   = "0/0";
+            _hpSlider.value = 0;
+        }
+        else
+        {
+            _hpCount.text   = hp + "/" + maxHp;
+            _hpSlider.value = hp / maxHp;
+        }
     }
 
     private void OnMoneyChanged(float money)
