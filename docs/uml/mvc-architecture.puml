@@ -1,0 +1,270 @@
+@startuml mvc-architecture
+title TudouHeroTest · MVC 总体架构（核心类关系图）
+
+skinparam packageStyle rectangle
+skinparam backgroundColor #FAFAFA
+skinparam class {
+    BackgroundColor White
+    BorderColor #444444
+    ArrowColor #555555
+}
+skinparam note {
+    BackgroundColor #FFFACD
+    BorderColor #AAAAAA
+}
+hide empty members
+
+' ─────────────────────────────────────────────────────────
+' Infra（基础设施层 / Infrastructure）
+' ─────────────────────────────────────────────────────────
+package "Infra（基础设施层）" #EEEEEE {
+
+    abstract class "BaseMgr<T>" as BaseMgr {
+        + {static} Instance : T
+    }
+
+    class "BaseMgrMono<T>" as BaseMgrMono {
+        + {static} Instance : T
+        + Awake()
+    }
+
+    class MonoMgr {
+        + {static} Instance : MonoMgr
+        + AddUpdateListener(fn)
+        + StartCoroutine(routine)
+    }
+
+    class EventCenter {
+        + AddEventListener(type, action)
+        + RemoveEventListener(type, action)
+        + EventTrigger(type)
+        + EventTrigger<T>(type, info)
+    }
+
+    enum E_EventType {
+        Scene_ToMainMenu
+        Scene_ToLevelSelect
+        Scene_ToGamePlay
+        Scene_ToShop
+        Player_HpChanged
+        Player_Dead
+        Audio_PlayBgm
+        ...
+    }
+
+    EventCenter --|> BaseMgr
+
+    note top of BaseMgr
+        «Singleton»
+        线程安全双重检查锁
+        BaseMgr / BaseMgrMono
+    end note
+
+    note right of MonoMgr
+        «Adapter / Proxy»
+        为纯 C# 管理器提供
+        Update 事件与协程能力
+    end note
+
+    note right of EventCenter
+        «Observer / EventBus»
+        跨系统事件广播总线
+        EventCenter + E_EventType
+    end note
+}
+
+' ─────────────────────────────────────────────────────────
+' Model（数据层）
+' ─────────────────────────────────────────────────────────
+package "Model（数据层）" #DDEEFF {
+
+    class GameState {
+        + money : int
+        + hp : int
+        + wave : int
+        + selectedRole : RoleData
+        + selectedWeapon : WeaponData
+    }
+
+    class RoleData {
+        + id : int
+        + name : string
+        + hp : int
+    }
+
+    class WeaponData {
+        + id : int
+        + name : string
+        + damage : float
+    }
+
+    class EnemyData {
+        + id : int
+        + hp : int
+        + speed : float
+    }
+
+    class PlayerModel {
+        ' 预留：待 DI 改造时\n替代 GameManager 的状态部分
+    }
+
+    GameState ..> RoleData : contains
+    GameState ..> WeaponData : contains
+}
+
+' ─────────────────────────────────────────────────────────
+' View — 服务管理器群（Facade-ish）
+' ─────────────────────────────────────────────────────────
+package "View（视图/服务层）" #FFF5E0 {
+
+    class UIMgr {
+        + ShowPanel<T>() : T
+        + HidePanel<T>()
+        + DestroyDic()
+    }
+
+    class AudioMgr {
+        + PlayBgm(key, loop)
+        + PlaySound(key)
+        + StopBgm()
+    }
+
+    class ResMgr {
+        + LoadAsync<T>(path, callback)
+    }
+
+    class PoolMgr {
+        + GetObj(path, callback)
+        + ReleaseObj(name, obj)
+    }
+
+    class ConfigMgr {
+        + LoadList<T>(key) : List<T>
+    }
+
+    UIMgr --|> BaseMgr
+    AudioMgr --|> BaseMgr
+    ResMgr --|> BaseMgr
+    PoolMgr --|> BaseMgr
+    ConfigMgr --|> BaseMgr
+
+    note bottom of UIMgr
+        «Facade-ish / Singleton»
+        外观服务管理器群
+        UIMgr / AudioMgr / ResMgr
+        PoolMgr / ConfigMgr
+    end note
+
+    class BasePanel {
+        + Show()
+        + Hide()
+    }
+
+    class BeginScenePanel {
+        - btnStart : Button
+        - btnSetting : Button
+    }
+
+    class GamePanel
+    class ShopPanel
+
+    BeginScenePanel --|> BasePanel
+    GamePanel --|> BasePanel
+    ShopPanel --|> BasePanel
+
+    UIMgr ..> BasePanel : manages lifecycle
+}
+
+' ─────────────────────────────────────────────────────────
+' Controller（控制层）
+' ─────────────────────────────────────────────────────────
+package "Controller（控制层）" #E0FFE0 {
+
+    class GameManager {
+        - sceneController : SceneStateController
+        + ResetGameState()
+        + Awake()
+        + Update()
+    }
+
+    class LevelControl {
+        + StartWave()
+        + CheckWaveEnd()
+    }
+
+    class Player {
+        + Injured(damage)
+        + Dead()
+    }
+
+    GameManager --|> BaseMgrMono
+}
+
+' ─────────────────────────────────────────────────────────
+' SceneState（状态模式）
+' ─────────────────────────────────────────────────────────
+package "SceneState（场景状态机）" #FFF5CC {
+
+    class SceneStateController {
+        - mState : ISceneState
+        + SetState(state, isLoadScene)
+        + StateUpdate()
+    }
+
+    class ISceneState {
+        # mSceneName : string
+        # mController : SceneStateController
+        + StateStart()
+        + StateEnd()
+        + StateUpdate()
+    }
+
+    class StartScene {
+        ' 01-MainMenu
+    }
+
+    class SelectSecene {
+        ' 02-LevelSelect（注意原始拼写）
+    }
+
+    class GameScene {
+        ' 03-GamePlay
+    }
+
+    class ShopScene {
+        ' 04-Shop
+    }
+
+    StartScene --|> ISceneState
+    SelectSecene --|> ISceneState
+    GameScene --|> ISceneState
+    ShopScene --|> ISceneState
+
+    SceneStateController "1" o--> "1" ISceneState : mState（当前状态）
+
+    note right of SceneStateController
+        «State Pattern»
+        SceneStateController +
+        ISceneState +
+        StartScene / SelectSecene
+        GameScene / ShopScene
+    end note
+}
+
+' ─────────────────────────────────────────────────────────
+' 跨层关系
+' ─────────────────────────────────────────────────────────
+GameManager --> SceneStateController : drives
+GameManager --> EventCenter : register/trigger
+GameManager --> ConfigMgr : reads config
+
+LevelControl --> EventCenter : trigger events
+BeginScenePanel --> EventCenter : trigger Scene_ToLevelSelect
+ShopPanel --> EventCenter : trigger Scene_ToGamePlay/ToMainMenu
+
+AudioMgr ..> MonoMgr : coroutine & Update proxy
+ResMgr ..> MonoMgr : coroutine proxy
+
+EventCenter ..> E_EventType : event keys
+
+@enduml

@@ -1,0 +1,197 @@
+---
+title: TudouHeroTest · MVC 总体架构（核心类关系图）
+---
+classDiagram
+    %% ─────────────────────────────────────────────────────
+    %% Infra（基础设施层 / Infrastructure）
+    %% ─────────────────────────────────────────────────────
+    namespace Infra {
+        class BaseMgr~T~ {
+            <<abstract>>
+            +Instance() T$
+        }
+        class BaseMgrMono~T~ {
+            +Instance() T$
+            +Awake()
+        }
+        class MonoMgr {
+            +Instance() MonoMgr$
+            +AddUpdateListener(fn)
+            +StartCoroutine(routine)
+        }
+        class EventCenter {
+            +AddEventListener(type, action)
+            +RemoveEventListener(type, action)
+            +EventTrigger(type)
+        }
+        class E_EventType {
+            <<enumeration>>
+            Scene_ToMainMenu
+            Scene_ToLevelSelect
+            Scene_ToGamePlay
+            Scene_ToShop
+            Player_HpChanged
+            Player_Dead
+            Audio_PlayBgm
+        }
+    }
+
+    %% ─────────────────────────────────────────────────────
+    %% Model（数据层）
+    %% ─────────────────────────────────────────────────────
+    namespace Model {
+        class GameState {
+            +money int
+            +hp int
+            +wave int
+            +selectedRole RoleData
+        }
+        class RoleData {
+            +id int
+            +name string
+            +hp int
+        }
+        class WeaponData {
+            +id int
+            +damage float
+        }
+        class EnemyData {
+            +id int
+            +hp int
+            +speed float
+        }
+        class PlayerModel {
+            %% 预留：待 DI 改造
+        }
+    }
+
+    %% ─────────────────────────────────────────────────────
+    %% View（视图/服务层）— 外观服务管理器群
+    %% ─────────────────────────────────────────────────────
+    namespace View {
+        class UIMgr {
+            +ShowPanel~T~() T
+            +HidePanel~T~()
+            +DestroyDic()
+        }
+        class AudioMgr {
+            +PlayBgm(key, loop)
+            +PlaySound(key)
+        }
+        class ResMgr {
+            +LoadAsync~T~(path, cb)
+        }
+        class PoolMgr {
+            +GetObj(path, cb)
+            +ReleaseObj(name, obj)
+        }
+        class ConfigMgr {
+            +LoadList~T~(key) List
+        }
+        class BasePanel {
+            +Show()
+            +Hide()
+        }
+        class BeginScenePanel {
+            -btnStart Button
+            -btnSetting Button
+        }
+        class GamePanel
+        class ShopPanel
+    }
+
+    %% ─────────────────────────────────────────────────────
+    %% Controller（控制层）
+    %% ─────────────────────────────────────────────────────
+    namespace Controller {
+        class GameManager {
+            -sceneController SceneStateController
+            +ResetGameState()
+            +Awake()
+            +Update()
+        }
+        class LevelControl {
+            +StartWave()
+            +CheckWaveEnd()
+        }
+        class Player {
+            +Injured(damage)
+            +Dead()
+        }
+    }
+
+    %% ─────────────────────────────────────────────────────
+    %% SceneState（场景状态机 — 状态模式）
+    %% ─────────────────────────────────────────────────────
+    namespace SceneState {
+        class SceneStateController {
+            -mState ISceneState
+            +SetState(state, isLoadScene)
+            +StateUpdate()
+        }
+        class ISceneState {
+            #mSceneName string
+            #mController SceneStateController
+            +StateStart()
+            +StateEnd()
+            +StateUpdate()
+        }
+        class StartScene {
+            %% 01-MainMenu
+        }
+        class SelectSecene {
+            %% 02-LevelSelect（原始拼写）
+        }
+        class GameScene {
+            %% 03-GamePlay
+        }
+        class ShopScene {
+            %% 04-Shop
+        }
+    }
+
+    %% ─────────────────────────────────────────────────────
+    %% 继承关系
+    %% ─────────────────────────────────────────────────────
+    EventCenter --|> BaseMgr : extends
+    UIMgr --|> BaseMgr : extends
+    AudioMgr --|> BaseMgr : extends
+    ResMgr --|> BaseMgr : extends
+    PoolMgr --|> BaseMgr : extends
+    ConfigMgr --|> BaseMgr : extends
+    GameManager --|> BaseMgrMono : extends
+
+    BeginScenePanel --|> BasePanel : extends
+    GamePanel --|> BasePanel : extends
+    ShopPanel --|> BasePanel : extends
+
+    StartScene --|> ISceneState : extends
+    SelectSecene --|> ISceneState : extends
+    GameScene --|> ISceneState : extends
+    ShopScene --|> ISceneState : extends
+
+    %% ─────────────────────────────────────────────────────
+    %% 跨层引用/依赖关系
+    %% ─────────────────────────────────────────────────────
+    SceneStateController o--> ISceneState : mState（当前状态）
+    GameManager --> SceneStateController : drives
+    GameManager --> EventCenter : register / trigger
+    GameManager --> ConfigMgr : reads config
+    LevelControl --> EventCenter : trigger events
+    BeginScenePanel --> EventCenter : trigger Scene_ToLevelSelect
+    ShopPanel --> EventCenter : trigger events
+    AudioMgr ..> MonoMgr : coroutine & Update proxy
+    ResMgr ..> MonoMgr : coroutine proxy
+    EventCenter ..> E_EventType : event keys
+    GameState ..> RoleData : contains
+    GameState ..> WeaponData : contains
+    UIMgr ..> BasePanel : manages lifecycle
+
+    %% ─────────────────────────────────────────────────────
+    %% 设计模式注释
+    %% ─────────────────────────────────────────────────────
+    note for BaseMgr "«Singleton»\n线程安全双重检查锁\nBaseMgr / BaseMgrMono"
+    note for MonoMgr "«Adapter/Proxy»\n为纯 C# 管理器提供\nUpdate 事件与协程能力"
+    note for EventCenter "«Observer / EventBus»\n跨系统事件广播总线"
+    note for SceneStateController "«State Pattern»\nSceneStateController +\nISceneState + 四个具体状态类"
+    note for UIMgr "«Facade-ish / Singleton»\n外观服务管理器群\nUIMgr/AudioMgr/ResMgr/PoolMgr/ConfigMgr"
