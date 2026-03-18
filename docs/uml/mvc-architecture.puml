@@ -9,95 +9,180 @@ title TudouHeroTest · MVC + Infra Architecture
 ' ============================
 ' Infra (Infrastructure) Layer
 ' ============================
-package "Infra · Infrastructure" #EEEEEE {
+package "Infra · Infrastructure\n基础设施层（跨场景持久化、可跨项目复用）" #EEEEEE {
 
     ' --- Singleton Bases ---
-    package "Singleton Base" #DDEEFF {
+    ' 【单例模式 Singleton】BaseMgr<T> / BaseMgrMono<T> 作为单例基类
+    package "【单例模式 Singleton Base】" #DDEEFF {
         abstract class BaseMgr<T> {
             {static} +Instance : T
             {static} -_instance : T
+            ' 双重检查锁，线程安全，反射调用私有构造
         }
         abstract class BaseMgrMono<T> {
             {static} +Instance : T
             #Awake()
+            ' MonoBehaviour 单例，由 Unity 主线程管理
         }
+
+        note right of BaseMgr
+            【单例模式 Singleton】
+            纯 C# 双重检查锁单例基类
+            所有纯逻辑 Manager 继承此类
+            ——
+            子类: EventCenter / ConfigMgr
+                  UIMgr / PoolMgr / ResMgr
+                  AudioMgr
+        end note
+
+        note right of BaseMgrMono
+            【单例模式 Singleton】
+            MonoBehaviour 单例基类
+            由 Unity 主线程创建，不可 new
+            ——
+            子类: GameManager / GamePanel
+                  LevelControl / Player
+                  RoleSelectPanel 等
+        end note
     }
 
     ' --- Core Services ---
-    package "Core Services" #DDFFD4 {
+    ' 【外观模式 Facade / 服务管理器集合】各 Mgr 作为系统服务统一入口
+    package "【外观模式 Facade · 系统服务集合】" #DDFFD4 {
+
+        ' 【观察者模式 Observer / EventBus】
         class EventCenter {
-            -_eventTable : Dictionary<E_EventType, Delegate>
+            -eventDic : Dictionary<E_EventType, EventInfoBase>
             +AddEventListener<T>(type, action)
             +RemoveEventListener<T>(type, action)
             +EventTrigger<T>(type, info)
+            +EventTrigger(type)
+            +ClearEvent(type)
         }
+
+        enum E_EventType {
+            BeginScene_btn_start
+            Scene_ToLevelSelect
+            Scene_ToGamePlay
+            Scene_ToShop
+            Scene_ToMainMenu
+            Player_HpChanged
+            Player_Dead
+            Wave_Started / Wave_Ended / Wave_AllCleared
+            Audio_PlayBgm / Audio_PlaySfx
+            Audio_StopBgm / Audio_SetVolume
+        }
+
+        note top of EventCenter
+            【观察者模式 Observer / EventBus】
+            类型安全的发布-订阅事件总线
+            用 E_EventType 枚举作为 key
+            解耦各子系统，禁止直接跨层引用
+            ——
+            订阅者: GameManager / AudioMgr
+                    GamePanel / LevelControl 等
+            发布者: Player / EnemyBase
+                    BeginScenePanel / ShopPanel 等
+        end note
+
         class ConfigMgr {
             +LoadList<T>(key) : List<T>
+            ' 统一 JSON 配置加载，返回独立副本
         }
         class UIMgr {
-            -_panelDict : Dictionary<string, BasePanel>
+            -dicUI : Dictionary<string, BasePanel>
             +ShowPanel<T>(name) : T
             +HidePanel(name)
         }
         class PoolMgr {
-            -_pool : Dictionary<string, PoolData>
-            +GetObj(name, callback)
+            -pool : Dictionary<string, PoolData>
+            +GetObj(name) : GameObject
             +PushObj(name, obj)
         }
-        class ResourceMgr {
+        class ResMgr {
+            +Load<T>(name) : T
             +LoadAsync<T>(name, callback)
         }
+
+        ' 【音效系统 AudioMgr】通过 EventCenter 订阅 Audio_* 事件
         class AudioMgr {
-            +PlayBGM(name)
-            +PlaySound(name)
+            -registry : AudioRegistry
+            -bgmSource : AudioSource
+            -masterVolume / bgmVolume / sfxVolume / uiVolume : float
+            +PlayBgm(id : AudioId)
+            +PlaySfx(id : AudioId, volume, pitch)
+            +StopBgm()
+            +SetVolume(master, bgm, sfx, ui)
+            -RegisterEvents()
         }
+
+        ' 【生命周期代理 Proxy/Adapter】
         class MonoMgr {
+            ' 自身为 MonoBehaviour 单例
+            ' 为纯 C# 管理器提供 Update 事件与协程能力
             +AddUpdateListener(action)
             +StartCoroutine(routine)
         }
+
+        note bottom of MonoMgr
+            【生命周期代理 Proxy/Adapter】
+            自身为 MonoBehaviour 单例
+            为纯 C# 管理器（如 AudioMgr）
+            代理 Unity Update 与协程能力
+            跨场景持久（DontDestroyOnLoad）
+        end note
+
+        note bottom of AudioMgr
+            【音效系统 + Facade + Observer】
+            在构造时调用 RegisterEvents()
+            订阅 EventCenter 的 Audio_* 事件：
+              Audio_PlayBgm  → PlayBgm(id)
+              Audio_PlaySfx  → PlaySfx(id)
+              Audio_StopBgm  → StopBgm()
+              Audio_SetVolume→ SetVolume(...)
+            短音效使用 PoolMgr 复用 AudioSource
+            需要协程时通过 MonoMgr 代理
+        end note
     }
 
-    ' --- Enum ---
-    enum E_EventType {
-        Player_HpChanged
-        Player_Dead
-        Scene_ToMainMenu
-        Scene_ToLevelSelect
-        Scene_ToGamePlay
-        Scene_ToShop
-        Wave_Ended
-    }
-
+    ' Singleton inheritance
     BaseMgr <|-- EventCenter
     BaseMgr <|-- ConfigMgr
     BaseMgr <|-- UIMgr
-    BaseMgrMono <|-- PoolMgr
-    BaseMgrMono <|-- ResourceMgr
-    BaseMgrMono <|-- AudioMgr
-    BaseMgrMono <|-- MonoMgr
+    BaseMgr <|-- PoolMgr
+    BaseMgr <|-- ResMgr
+    BaseMgr <|-- AudioMgr
 
-    EventCenter ..> E_EventType : uses
-    AudioMgr ..> EventCenter : subscribes
+    EventCenter --> E_EventType : key
+
+    ' AudioMgr 订阅 EventCenter 的 Audio_* 事件
+    AudioMgr ..> EventCenter : subscribes\nAudio_PlayBgm / Audio_PlaySfx\nAudio_StopBgm / Audio_SetVolume
+    ' AudioMgr 使用 MonoMgr 执行协程（限音计数回收）
+    AudioMgr ..> MonoMgr : StartCoroutine\n(voice release)
+    ' AudioMgr 使用 PoolMgr 复用 AudioSource 节点
+    AudioMgr ..> PoolMgr : GetObj / PushObj\n(AudioSourcePooled)
+    ' AudioMgr 使用 ResMgr 加载 AudioRegistry
+    AudioMgr ..> ResMgr : Load(AudioRegistry)
 }
 
 ' ============================
 ' MVC · Model Layer
 ' ============================
-package "MVC · Model" #FFF8DC {
+package "MVC · Model\n数据与运行时状态" #FFF8DC {
     class GameManager {
-        +hp : int
-        +money : int
-        +exp : int
-        +waveIndex : int
-        +selectedRole : RoleData
-        +selectedWeapon : WeaponData
-        +selectedDifficulty : DifficultyData
+        +currentRoleData : RoleData
+        +currentWeapons : List<WeaponData>
+        +currentDifficulty : DifficultyData
+        +hp / money / exp / waveIndex : int
         +ResetGameState()
+        -RegisterSceneEvents()
+        ' 注：同时承担 Controller 职责（流程调度）
+        ' TODO: 提取 GameStateModel，用 DI 解耦
     }
     class PlayerModel {
         +hp : int
         +money : int
-        ' Reserved for DI refactor
+        ' 预留，DI 改造时替代 GameManager 的状态部分
     }
     class RoleData {
         +id : int
@@ -141,14 +226,28 @@ package "MVC · Model" #FFF8DC {
 ' ============================
 ' MVC · View Layer
 ' ============================
-package "MVC · View" #FFE4E1 {
+package "MVC · View\nUI 面板展示层" #FFE4E1 {
+
     abstract class BasePanel {
         #_canvas : CanvasGroup
         +ShowPanel()
         +HidePanel()
         #Init()
     }
-    class BeginScenePanel
+
+    note top of BasePanel
+        【模板方法 Template Method】
+        定义 ShowPanel/HidePanel/Init
+        生命周期钩子，子类实现具体行为
+    end note
+
+    ' BeginScenePanel 继承自 BasePanel（挂载在主菜单场景）
+    class BeginScenePanel {
+        +OnBtnStartClick()
+    }
+
+    ' 以下 Panel 实际继承 BaseMgrMono<T>（MonoBehaviour 单例）
+    ' 直接挂载到对应场景，通过 EventCenter 接收刷新通知
     class GamePanel {
         +RenewHp(hp)
         +RenewMoney(money)
@@ -162,13 +261,13 @@ package "MVC · View" #FFE4E1 {
     class SuccessPanel
 
     BasePanel <|-- BeginScenePanel
-    BasePanel <|-- GamePanel
-    BasePanel <|-- ShopPanel
-    BasePanel <|-- RoleSelectPanel
-    BasePanel <|-- WeaponSelectPanel
-    BasePanel <|-- DifficultySelectPanel
-    BasePanel <|-- FailPanel
-    BasePanel <|-- SuccessPanel
+    BaseMgrMono <|-- GamePanel
+    BaseMgrMono <|-- ShopPanel
+    BaseMgrMono <|-- RoleSelectPanel
+    BaseMgrMono <|-- WeaponSelectPanel
+    BaseMgrMono <|-- DifficultySelectPanel
+    BaseMgrMono <|-- FailPanel
+    BaseMgrMono <|-- SuccessPanel
 
     UIMgr ..> BasePanel : manages
 }
@@ -176,23 +275,50 @@ package "MVC · View" #FFE4E1 {
 ' ============================
 ' MVC · Controller Layer
 ' ============================
-package "MVC · Controller" #E8F5E9 {
+package "MVC · Controller\n业务逻辑与场景流转" #E8F5E9 {
 
-    ' --- State Pattern ---
-    package "State Pattern" #C8E6C9 {
+    ' 【状态模式 State Pattern】
+    package "【状态模式 State Pattern】" #C8E6C9 {
         abstract class ISceneState {
-            #_stateController : SceneStateController
+            #controller : SceneStateController
+            +SceneName : string
             +StateStart()
             +StateEnd()
         }
         class SceneStateController {
-            -_currentState : ISceneState
-            +SetState(state)
+            -currentState : ISceneState
+            -isRunStart : bool
+            +SetState(state, isLoadScene)
+            +StateUpdate()
         }
-        class StartScene
-        class SelectSecene
-        class GameScene
-        class ShopScene
+        class StartScene {
+            +SceneName = "01-MainMenu"
+        }
+        class SelectSecene {
+            +SceneName = "02-LevelSelect"
+        }
+        class GameScene {
+            +SceneName = "03-GamePlay"
+        }
+        class ShopScene {
+            +SceneName = "04-Shop"
+        }
+
+        note top of SceneStateController
+            【状态模式 State Pattern · Context】
+            持有当前 ISceneState
+            调用 SetState() 完成状态切换
+            并通过 AsyncOperation 异步加载对应场景
+            每帧调用 StateUpdate() 驱动当前状态
+        end note
+
+        note top of ISceneState
+            【状态模式 State Pattern · State】
+            抽象状态基类（命名为类但承担接口职责）
+            每个 Scene 状态封装：
+              StateStart: 场景加载完成后的初始化
+              StateEnd:   切换前的清理工作
+        end note
 
         ISceneState <|-- StartScene
         ISceneState <|-- SelectSecene
@@ -202,7 +328,7 @@ package "MVC · Controller" #E8F5E9 {
     }
 
     class LevelControl {
-        -_waveIndex : int
+        -waveIndex : int
         +StartWave()
         +SpawnEnemy()
         +BadGame()
@@ -216,28 +342,32 @@ package "MVC · Controller" #E8F5E9 {
 
     BaseMgrMono <|-- LevelControl
     BaseMgrMono <|-- Player
-
-    GameManager --> SceneStateController : drives
-    GameManager ..> EventCenter : listen/trigger
-    LevelControl ..> EventCenter : triggers
-    Player ..> EventCenter : triggers
-    BeginScenePanel ..> EventCenter : triggers
-    ShopPanel ..> EventCenter : triggers
 }
 
 ' ============================
 ' Cross-Layer Communication
 ' ============================
-GameManager ..> ConfigMgr : reads config
-GameManager ..> UIMgr : via events
-EventCenter ..> GamePanel : callback RenewHp/Money
-EventCenter ..> LevelControl : callback BadGame/GoodGame
+GameManager --> SceneStateController : drives\n(Update→StateUpdate)
+GameManager --> ConfigMgr : reads config\n(Awake)
+GameManager ..> EventCenter : subscribe Scene_To*\ntrigger GameState events
+
+LevelControl ..> EventCenter : trigger Wave_*\nScene_ToShop / Scene_ToMainMenu
+Player ..> EventCenter : trigger Player_HpChanged\nPlayer_Dead
+
+BeginScenePanel ..> EventCenter : trigger Scene_ToLevelSelect
+ShopPanel ..> EventCenter : trigger Scene_ToGamePlay\nScene_ToMainMenu
+RoleSelectPanel ..> EventCenter : role selected event
+WeaponSelectPanel ..> EventCenter : weapon selected event
+DifficultySelectPanel ..> EventCenter : trigger Scene_ToGamePlay
+
+EventCenter ..> GamePanel : callback RenewHp/Money/Wave
 EventCenter ..> GameManager : callback scene transitions
+EventCenter ..> AudioMgr : dispatch Audio_* events
 
 ' ============================
-' Enemy / Weapon / Bullet
+' Game Objects Layer
 ' ============================
-package "Game Objects" #F3E5F5 {
+package "Game Objects\n游戏实体" #F3E5F5 {
     abstract class EnemyBase {
         +hp : int
         +speed : float
@@ -294,9 +424,22 @@ package "Game Objects" #F3E5F5 {
     Bullet <|-- EnemyBullet
     Bullet <|-- MedicalBullet
 
-    EnemyBase ..> EventCenter : triggers Player_HpChanged
-    EnemyBase --> PoolMgr : returns self
-    WeaponBase --> PoolMgr : spawns Bullet
+    EnemyBase ..> EventCenter : trigger Player_HpChanged
+    EnemyBase ..> PoolMgr : PushObj (self-recycle)
+    WeaponBase ..> PoolMgr : GetObj (spawn Bullet)
+
+    note top of EnemyBase
+        【模板方法 Template Method】
+        Attack()/Dead() 定义骨架行为
+        Enemy1~5 继承并实现具体行为
+    end note
+
+    note top of WeaponBase
+        【模板方法 Template Method】
+        Attack() 定义攻击骨架
+        WeaponShort/Long/具体武器
+        继承并实现攻击方式
+    end note
 }
 
 @enduml

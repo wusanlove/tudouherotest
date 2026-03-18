@@ -2,69 +2,122 @@
 title: TudouHeroTest · MVC + Infra Architecture
 ---
 classDiagram
+    direction TB
+
     %% ============================
     %% Infra (Infrastructure) Layer
     %% ============================
-
-    %% Singleton Bases
+    %% 【单例模式 Singleton】BaseMgr<T> / BaseMgrMono<T> 作为单例基类
     class BaseMgr {
-        <<abstract>>
-        +Instance T
+        <<abstract · Singleton Base>>
+        +Instance T$
     }
     class BaseMgrMono {
-        <<abstract>>
-        +Instance T
+        <<abstract · Singleton Base>>
+        +Instance T$
         #Awake()
     }
+    note for BaseMgr "【单例模式 Singleton】\n纯 C# 双重检查锁单例基类\n所有纯逻辑 Manager 继承此类"
+    note for BaseMgrMono "【单例模式 Singleton】\nMonoBehaviour 单例基类\n(Unity 主线程，不可 new)"
 
-    %% Core Services
+    %% 【事件中心 / 观察者模式 Observer】
     class EventCenter {
+        <<Observer · EventBus>>
         +AddEventListener(type, action)
         +RemoveEventListener(type, action)
         +EventTrigger(type, info)
+        +ClearEvent(type)
     }
+    class E_EventType {
+        <<enum>>
+        BeginScene_btn_start
+        Scene_ToLevelSelect
+        Scene_ToGamePlay
+        Scene_ToShop
+        Scene_ToMainMenu
+        Player_HpChanged
+        Player_Dead
+        Wave_Started
+        Wave_Ended
+        Wave_AllCleared
+        Audio_PlayBgm
+        Audio_PlaySfx
+        Audio_StopBgm
+        Audio_SetVolume
+    }
+    note for EventCenter "【观察者模式 Observer / EventBus】\n类型安全的发布-订阅事件总线\n用 E_EventType 枚举作为 key\n解耦各子系统，禁止直接跨层引用"
+
+    %% 【外观模式 Facade / 服务管理器集合】各 Mgr 作为系统服务统一入口
     class ConfigMgr {
+        <<Facade · Service>>
         +LoadList(key) List
     }
     class UIMgr {
+        <<Facade · Service>>
         +ShowPanel(name) BasePanel
         +HidePanel(name)
     }
     class PoolMgr {
+        <<Facade · Service>>
         +GetObj(name, callback)
         +PushObj(name, obj)
     }
-    class ResourceMgr {
+    class ResMgr {
+        <<Facade · Service>>
+        +Load(name) T
         +LoadAsync(name, callback)
     }
     class AudioMgr {
-        +PlayBGM(name)
-        +PlaySound(name)
+        <<Facade · Service>>
+        +PlayBgm(id)
+        +PlaySfx(id)
+        +StopBgm()
+        +SetVolume(master,bgm,sfx,ui)
     }
+    %% 【生命周期代理 Proxy/Adapter】MonoMgr 为纯 C# 管理器提供 Update/协程
     class MonoMgr {
+        <<Proxy · Lifecycle Adapter>>
         +AddUpdateListener(action)
         +StartCoroutine(routine)
     }
+    note for MonoMgr "【生命周期代理 Proxy/Adapter】\n自身为 MonoBehaviour 单例\n为纯 C# 管理器（如 AudioMgr）\n代理 Unity Update 与协程能力"
+    note for AudioMgr "【外观模式 Facade】\n音效服务统一入口\n通过 EventCenter 订阅\nAudio_PlayBgm / Audio_PlaySfx\n/ Audio_StopBgm / Audio_SetVolume\n实现事件驱动播音"
 
+    %% Singleton inheritance (Infra)
     BaseMgr <|-- EventCenter
     BaseMgr <|-- ConfigMgr
     BaseMgr <|-- UIMgr
-    BaseMgrMono <|-- PoolMgr
-    BaseMgrMono <|-- ResourceMgr
-    BaseMgrMono <|-- AudioMgr
-    BaseMgrMono <|-- MonoMgr
+    BaseMgr <|-- PoolMgr
+    BaseMgr <|-- ResMgr
+    BaseMgr <|-- AudioMgr
+
+    %% EventCenter uses E_EventType as key
+    EventCenter --> E_EventType : key
+
+    %% AudioMgr subscribes Audio_* events from EventCenter
+    AudioMgr ..> EventCenter : subscribes Audio_PlayBgm\nAudio_PlaySfx\nAudio_StopBgm\nAudio_SetVolume
+
+    %% AudioMgr uses MonoMgr for coroutines (voice release)
+    AudioMgr ..> MonoMgr : StartCoroutine
+
+    %% AudioMgr uses PoolMgr to pool AudioSource nodes
+    AudioMgr ..> PoolMgr : GetObj/PushObj
+
+    %% AudioMgr uses ResMgr to load AudioRegistry
+    AudioMgr ..> ResMgr : Load AudioRegistry
 
     %% ============================
     %% MVC · Model Layer
     %% ============================
     class GameManager {
+        <<Controller + Model Hub>>
+        +currentRoleData RoleData
+        +currentWeapons List
+        +currentDifficulty DifficultyData
         +hp int
         +money int
         +exp int
         +waveIndex int
-        +selectedRole RoleData
-        +selectedWeapon WeaponData
-        +selectedDifficulty DifficultyData
         +ResetGameState()
     }
     class RoleData {
@@ -90,6 +143,7 @@ classDiagram
     }
     class LevelData {
         +waveIndex int
+        +enemies List
     }
     class PlayerModel {
         +hp int
@@ -110,12 +164,18 @@ classDiagram
     %% MVC · View Layer
     %% ============================
     class BasePanel {
-        <<abstract>>
+        <<abstract · Template Method>>
         +ShowPanel()
         +HidePanel()
         #Init()
     }
-    class BeginScenePanel
+    note for BasePanel "【模板方法 Template Method】\n定义 Show/Hide/Init 生命周期钩子\n子类实现具体初始化行为"
+
+    class BeginScenePanel {
+        +OnBtnStartClick()
+    }
+    %% 注：以下 Panel 实际继承 BaseMgrMono（MonoBehaviour 单例），
+    %% 直接挂载场景中，通过 EventCenter 接收数据刷新
     class GamePanel {
         +RenewHp(hp)
         +RenewMoney(money)
@@ -129,32 +189,46 @@ classDiagram
     class SuccessPanel
 
     BasePanel <|-- BeginScenePanel
-    BasePanel <|-- GamePanel
-    BasePanel <|-- ShopPanel
-    BasePanel <|-- RoleSelectPanel
-    BasePanel <|-- WeaponSelectPanel
-    BasePanel <|-- DifficultySelectPanel
-    BasePanel <|-- FailPanel
-    BasePanel <|-- SuccessPanel
+    BaseMgrMono <|-- GamePanel
+    BaseMgrMono <|-- ShopPanel
+    BaseMgrMono <|-- RoleSelectPanel
+    BaseMgrMono <|-- WeaponSelectPanel
+    BaseMgrMono <|-- DifficultySelectPanel
+    BaseMgrMono <|-- FailPanel
+    BaseMgrMono <|-- SuccessPanel
     UIMgr ..> BasePanel : manages
 
     %% ============================
     %% MVC · Controller Layer
     %% ============================
 
-    %% State Pattern
+    %% 【状态模式 State Pattern】SceneStateController + ISceneState + 四个场景状态
     class ISceneState {
-        <<abstract>>
+        <<State · abstract>>
+        #controller SceneStateController
         +StateStart()
         +StateEnd()
     }
     class SceneStateController {
-        +SetState(state)
+        <<Context · State Pattern>>
+        -currentState ISceneState
+        +SetState(state, isLoadScene)
+        +StateUpdate()
     }
-    class StartScene
-    class SelectSecene
-    class GameScene
-    class ShopScene
+    class StartScene {
+        +SceneName = 01-MainMenu
+    }
+    class SelectSecene {
+        +SceneName = 02-LevelSelect
+    }
+    class GameScene {
+        +SceneName = 03-GamePlay
+    }
+    class ShopScene {
+        +SceneName = 04-Shop
+    }
+    note for SceneStateController "【状态模式 State Pattern】\nContext 持有当前 ISceneState\n调用 SetState() 完成状态切换\n并异步加载对应场景"
+    note for ISceneState "【状态模式 State Pattern】\n抽象状态基类\n每个 Scene 状态封装\nStateStart/StateEnd 行为"
 
     ISceneState <|-- StartScene
     ISceneState <|-- SelectSecene
@@ -176,21 +250,30 @@ classDiagram
 
     BaseMgrMono <|-- LevelControl
     BaseMgrMono <|-- Player
-    GameManager --> SceneStateController : drives
-    GameManager ..> EventCenter : listen/trigger
-    LevelControl ..> EventCenter : triggers
-    Player ..> EventCenter : triggers
-    BeginScenePanel ..> EventCenter : triggers
-    ShopPanel ..> EventCenter : triggers
-    EventCenter ..> GamePanel : callback
-    EventCenter ..> LevelControl : callback
-    EventCenter ..> GameManager : callback
+
+    %% GameManager drives SceneStateController and listens to EventCenter
+    GameManager --> SceneStateController : drives (Update→StateUpdate)
+    GameManager --> ConfigMgr : reads config on Awake
+    GameManager ..> EventCenter : subscribe Scene_To*\ntrigger GameState events
+
+    LevelControl ..> EventCenter : trigger Wave_*/Scene_To*
+    Player ..> EventCenter : trigger Player_HpChanged\nPlayer_Dead
+
+    BeginScenePanel ..> EventCenter : trigger Scene_ToLevelSelect
+    ShopPanel ..> EventCenter : trigger Scene_ToGamePlay\nScene_ToMainMenu
+    RoleSelectPanel ..> EventCenter : trigger role selected
+    WeaponSelectPanel ..> EventCenter : trigger weapon selected
+    DifficultySelectPanel ..> EventCenter : trigger Scene_ToGamePlay
+
+    EventCenter ..> GamePanel : callback RenewHp/Money/Wave
+    EventCenter ..> GameManager : callback scene transitions
+    EventCenter ..> AudioMgr : dispatch Audio_* events
 
     %% ============================
     %% Game Objects Layer
     %% ============================
     class EnemyBase {
-        <<abstract>>
+        <<abstract · Template Method>>
         +hp int
         +speed float
         +damage int
@@ -204,7 +287,7 @@ classDiagram
     class Enemy5
 
     class WeaponBase {
-        <<abstract>>
+        <<abstract · Template Method>>
         +damage int
         +attackSpeed float
         +Attack()
@@ -248,6 +331,6 @@ classDiagram
     Bullet <|-- EnemyBullet
     Bullet <|-- MedicalBullet
 
-    EnemyBase ..> EventCenter : triggers
-    EnemyBase ..> PoolMgr : returns self
-    WeaponBase ..> PoolMgr : spawns Bullet
+    EnemyBase ..> EventCenter : trigger Player_HpChanged
+    EnemyBase ..> PoolMgr : PushObj (self-recycle)
+    WeaponBase ..> PoolMgr : GetObj (spawn Bullet)
