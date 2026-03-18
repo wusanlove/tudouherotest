@@ -37,7 +37,7 @@ classDiagram
 
 | 层次 | 说明 | 主要类 |
 |------|------|--------|
-| **Infra · Infrastructure** | 跨场景持久化基础设施，全部为单例服务 | `BaseMgr<T>`、`BaseMgrMono<T>`、`EventCenter`、`ConfigMgr`、`UIMgr`、`PoolMgr`、`AudioMgr`、`MonoMgr`、`ResourceMgr` |
+| **Infra · Infrastructure** | 跨场景持久化基础设施，全部为单例服务 | `BaseMgr<T>`、`BaseMgrMono<T>`、`EventCenter`、`ConfigMgr`、`UIMgr`、`PoolMgr`、`AudioMgr`、`MonoMgr`、`ResMgr` |
 | **MVC · Model** | 运行时游戏状态与数据结构 | `GameManager`、`RoleData`、`WeaponData`、`EnemyData`、`DifficultyData`、`LevelData`、`PlayerModel` |
 | **MVC · View** | UI 面板展示层，通过 EventCenter 接收更新 | `BasePanel`、`GamePanel`、`BeginScenePanel`、`ShopPanel`、`RoleSelectPanel` 等 |
 | **MVC · Controller** | 业务逻辑与场景流转控制 | `GameManager`、`SceneStateController`、`LevelControl`、`Player`、各 Scene State 类 |
@@ -47,16 +47,130 @@ classDiagram
 
 ---
 
-## 设计模式一览
+## MVC 总体架构图（含设计模式标注）
+
+> 以下 Mermaid 图可在 GitHub 页面直接渲染。完整类图（含所有字段/方法/继承）请查看 [`docs/uml/mvc-architecture.mmd`](uml/mvc-architecture.mmd) 或 [`docs/uml/mvc-architecture.puml`](uml/mvc-architecture.puml)。
+
+```mermaid
+classDiagram
+    direction TB
+
+    %% ── Infra 基础设施层 ──────────────────────────────────────────────────
+    namespace Infra_单例模式_Singleton {
+        class BaseMgr["BaseMgr＜T＞\n《Singleton Base · 纯C#》"]
+        class BaseMgrMono["BaseMgrMono＜T＞\n《Singleton Base · MonoBehaviour》"]
+    }
+
+    namespace Infra_观察者_EventBus {
+        class EventCenter["EventCenter\n《Observer · EventBus》\n+AddEventListener()\n+EventTrigger()"]
+        class E_EventType["E_EventType\n《enum》\nScene_To* | Player_*\nWave_* | Audio_*"]
+    }
+
+    namespace Infra_外观模式_Facade {
+        class ConfigMgr["ConfigMgr\n《Facade · Service》\n+LoadList(key)"]
+        class UIMgr["UIMgr\n《Facade · Service》\n+ShowPanel()"]
+        class PoolMgr["PoolMgr\n《Facade · Service》\n+GetObj() / PushObj()"]
+        class ResMgr["ResMgr\n《Facade · Service》\n+Load() / LoadAsync()"]
+        class AudioMgr["AudioMgr\n《Facade · AudioSystem》\n+PlayBgm(id)\n+PlaySfx(id)\n订阅 Audio_* 事件"]
+        class MonoMgr["MonoMgr\n《Proxy · Lifecycle Adapter》\n+AddUpdateListener()\n+StartCoroutine()"]
+    }
+
+    %% ── MVC · Model ────────────────────────────────────────────────────
+    namespace MVC_Model {
+        class GameManager["GameManager\n《Controller + Model Hub》\n+hp / money / exp / waveIndex\n+ResetGameState()"]
+        class RoleData
+        class WeaponData
+        class DifficultyData
+        class EnemyData
+        class LevelData
+    }
+
+    %% ── MVC · View ─────────────────────────────────────────────────────
+    namespace MVC_View {
+        class BasePanel["BasePanel\n《abstract · Template Method》\n+ShowPanel() / HidePanel()"]
+        class BeginScenePanel
+        class GamePanel["GamePanel\n+RenewHp(hp)\n+RenewMoney(money)"]
+        class ShopPanel
+        class RoleSelectPanel
+        class WeaponSelectPanel
+        class DifficultySelectPanel
+    }
+
+    %% ── MVC · Controller & 状态模式 ────────────────────────────────────
+    namespace MVC_Controller_状态模式_State {
+        class SceneStateController["SceneStateController\n《Context · State Pattern》\n+SetState(state, isLoadScene)\n+StateUpdate()"]
+        class ISceneState["ISceneState\n《State · abstract》\n+StateStart() / StateEnd()"]
+        class StartScene["StartScene\n01-MainMenu"]
+        class SelectSecene["SelectSecene\n02-LevelSelect"]
+        class GameScene["GameScene\n03-GamePlay"]
+        class ShopScene["ShopScene\n04-Shop"]
+        class LevelControl["LevelControl\n+StartWave() / SpawnEnemy()\n+BadGame() / GoodGame()"]
+        class Player["Player\n+Injured(damage) / Dead()"]
+    }
+
+    %% ── Singleton 继承 ────────────────────────────────────────────────
+    BaseMgr <|-- EventCenter
+    BaseMgr <|-- ConfigMgr
+    BaseMgr <|-- UIMgr
+    BaseMgr <|-- PoolMgr
+    BaseMgr <|-- ResMgr
+    BaseMgr <|-- AudioMgr
+    BaseMgrMono <|-- GameManager
+    BaseMgrMono <|-- GamePanel
+    BaseMgrMono <|-- ShopPanel
+    BaseMgrMono <|-- RoleSelectPanel
+    BaseMgrMono <|-- WeaponSelectPanel
+    BaseMgrMono <|-- DifficultySelectPanel
+    BaseMgrMono <|-- LevelControl
+    BaseMgrMono <|-- Player
+
+    %% ── 状态模式继承 ────────────────────────────────────────────────────
+    ISceneState <|-- StartScene
+    ISceneState <|-- SelectSecene
+    ISceneState <|-- GameScene
+    ISceneState <|-- ShopScene
+    SceneStateController o-- ISceneState : currentState
+
+    %% ── View 继承 ───────────────────────────────────────────────────────
+    BasePanel <|-- BeginScenePanel
+
+    %% ── EventCenter 依赖（Observer 订阅/发布）────────────────────────────
+    EventCenter --> E_EventType : key
+    AudioMgr ..> EventCenter : 订阅 Audio_PlayBgm\nAudio_PlaySfx / Audio_StopBgm
+    AudioMgr ..> MonoMgr : StartCoroutine
+    AudioMgr ..> PoolMgr : 复用 AudioSourcePooled
+    GameManager ..> EventCenter : 订阅 Scene_To*
+    GameManager --> SceneStateController : 驱动 Update→StateUpdate
+    GameManager --> ConfigMgr : Awake 读取配置
+    LevelControl ..> EventCenter : 触发 Wave_* / Scene_To*
+    Player ..> EventCenter : 触发 Player_HpChanged\nPlayer_Dead
+    BeginScenePanel ..> EventCenter : 触发 Scene_ToLevelSelect
+    ShopPanel ..> EventCenter : 触发 Scene_ToGamePlay\nScene_ToMainMenu
+    DifficultySelectPanel ..> EventCenter : 触发 Scene_ToGamePlay
+    EventCenter ..> GamePanel : 回调 RenewHp/Money/Wave
+    EventCenter ..> GameManager : 回调场景切换
+    EventCenter ..> AudioMgr : 派发 Audio_* 事件
+    UIMgr ..> BasePanel : manages
+    GameManager *-- RoleData
+    GameManager *-- WeaponData
+    GameManager *-- DifficultyData
+    ConfigMgr ..> RoleData : loads
+    ConfigMgr ..> WeaponData : loads
+    ConfigMgr ..> EnemyData : loads
+    ConfigMgr ..> LevelData : loads
+```
+
+---
 
 | 模式 | 实现类 | 说明 |
 |------|--------|------|
-| **单例（Singleton）** | `BaseMgr<T>`、`BaseMgrMono<T>` | 线程安全单例基类，所有 Manager 继承 |
-| **状态（State）** | `ISceneState`、`SceneStateController`、`StartScene`/`SelectSecene`/`GameScene`/`ShopScene` | 场景状态机，异步加载场景 |
-| **事件中心 / 观察者（Observer）** | `EventCenter`、`E_EventType` | 类型安全的发布-订阅事件总线，解耦各子系统 |
-| **外观（Facade）** | `GameManager`（对外提供游戏状态统一入口）、`UIMgr`（对外提供面板管理） | 封装子系统复杂性，提供简洁接口 |
-| **对象池（Object Pool）** | `PoolMgr`、`PoolData` | 复用 GameObject，减少 GC 压力 |
-| **模板方法（Template Method）** | `BasePanel`、`WeaponBase`、`EnemyBase` | 定义生命周期钩子，子类实现具体行为 |
+| **单例（Singleton）** | `BaseMgr<T>`、`BaseMgrMono<T>` | 双重检查锁 / MonoBehaviour 单例基类；EventCenter / ConfigMgr / UIMgr / PoolMgr / ResMgr / AudioMgr 继承 BaseMgr；GameManager / GamePanel / LevelControl / Player 等继承 BaseMgrMono |
+| **状态（State）** | `ISceneState`（Context: `SceneStateController`）、`StartScene` / `SelectSecene` / `GameScene` / `ShopScene` | 场景状态机：SetState() 触发 StateEnd→异步加载→StateStart，每帧 StateUpdate 驱动当前状态 |
+| **事件中心 / 观察者（Observer / EventBus）** | `EventCenter`、`E_EventType` | 类型安全的发布-订阅事件总线；Audio_* 事件由 AudioMgr 订阅，Player_* / Wave_* / Scene_* 分别由对应系统订阅 |
+| **外观（Facade / 服务管理器集合）** | `ConfigMgr`、`ResMgr`、`UIMgr`、`AudioMgr`、`PoolMgr`、`MonoMgr` | 各管理器封装子系统复杂性，向业务层提供统一简洁的服务入口 |
+| **生命周期代理（Proxy / Adapter）** | `MonoMgr` | 自身为 MonoBehaviour 单例，为纯 C# 管理器（如 AudioMgr）代理 Unity Update 事件与协程能力 |
+| **对象池（Object Pool）** | `PoolMgr`、`PoolData`、`AudioSourcePooled` | 复用 GameObject（含音效 AudioSource），减少 GC 压力 |
+| **模板方法（Template Method）** | `BasePanel`、`WeaponBase`、`EnemyBase` | 定义 Show/Hide/Init / Attack / Dead 生命周期钩子，子类实现具体行为 |
 
 ---
 
