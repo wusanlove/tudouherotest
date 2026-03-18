@@ -1,0 +1,127 @@
+[
+  {
+    "id": 1,
+    "waveTimer": 20,
+    "enemys": [
+    {
+      "enemyName": "enemy1",
+      "timeAxis": 1,
+      "count": 4
+    },
+    {
+      "enemyName": "enemy1",
+      "timeAxis": 4,
+      "count": 4
+    },
+    {
+      "enemyName": "enemy1",
+      "timeAxis": 7,
+      "count": 4
+    },
+    {
+      "enemyName": "enemy1",
+      "timeAxis": 10,
+      "count": 4
+    },
+    {
+      "enemyName": "enemy2",
+      "timeAxis": 13,
+      "count": 4
+    },
+    {
+      "enemyName": "enemy2",
+      "timeAxis": 16,
+      "count": 4
+    },
+    {
+      "enemyName": "enemy3",
+      "timeAxis": 18,
+      "count": 4
+    }
+  ]
+  },
+  {
+    "id": 2,
+    "waveTimer": 20,
+    "enemys": [
+      {
+        "enemyName": "enemy1",
+        "timeAxis": 1,
+        "count": 4
+      },
+      {
+        "enemyName": "enemy2",
+        "timeAxis": 4,
+        "count": 4
+      },
+      {
+        "enemyName": "enemy2",
+        "timeAxis": 7,
+        "count": 4
+      },
+      {
+        "enemyName": "enemy3",
+        "timeAxis": 10,
+        "count": 4,
+        "elite": 1
+      },
+      {
+        "enemyName": "enemy4",
+        "timeAxis": 13,
+        "count": 4
+      },
+      {
+        "enemyName": "enemy4",
+        "timeAxis": 18,
+        "count": 4,
+        "elite": 1
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "waveTimer": 20,
+    "enemys": [
+      {
+        "enemyName": "enemy2",
+        "timeAxis": 1,
+        "count": 4
+      },
+      {
+        "enemyName": "enemy4",
+        "timeAxis": 4,
+        "count": 4,
+        "elite": 1
+      },
+      {
+        "enemyName": "enemy3",
+        "timeAxis": 7,
+        "count": 4
+      },
+      {
+        "enemyName": "enemy4",
+        "timeAxis": 10,
+        "count": 4,
+        "elite": 1
+      },
+      {
+        "enemyName": "enemy4",
+        "timeAxis": 13,
+        "count": 4
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "waveTimer": 20,
+    "enemys": [
+      {
+        "enemyName": "enemy5",
+        "timeAxis": 1,
+        "count": 2,
+        "elite": 0
+      }
+    ]
+  }
+  
+]
