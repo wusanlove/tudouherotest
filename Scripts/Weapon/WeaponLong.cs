@@ -12,10 +12,8 @@ public class WeaponLong: WeaponBase
         //获取方向
         Vector2 dir = (enemy.position - transform.position).normalized;
         
-        //音效（新版：AudioMgr + EventCenter）
-        EventCenter.Instance.EventTrigger<AudioPlayRequest>(
-            E_EventType.Audio_PlaySfx,
-            new AudioPlayRequest { key = "SFX_Shoot", volume = 1f, pitch = 1f });
+        //音效（AudioId 枚举驱动，无需关心音频名称）
+        EventCenter.Instance.EventTrigger(E_EventType.Audio_PlaySfx, AudioId.SFX_Shoot);
         
         //创造子弹
         GameObject bullet = GenerateBullet(dir);

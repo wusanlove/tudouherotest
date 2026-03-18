@@ -41,9 +41,7 @@ public class UIHoverScaleTween : MonoBehaviour, IPointerEnterHandler, IPointerEx
         _tween?.Kill(); // 避免快速进出导致叠加/抖动
         _tween = transform.DOScale(target, duration).SetEase(ease);
 
-        // UI 音效（新版：AudioMgr + EventCenter）
-        EventCenter.Instance.EventTrigger<AudioPlayRequest>(
-            E_EventType.Audio_PlaySfx,
-            new AudioPlayRequest { key = "UI_Hover", volume = 1f, pitch = 1f });
+        // UI 音效（AudioId 枚举驱动，无需关心音频名称）
+        EventCenter.Instance.EventTrigger(E_EventType.Audio_PlaySfx, AudioId.SFX_UI_Hover);
     }
 }

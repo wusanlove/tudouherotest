@@ -78,9 +78,8 @@ public class GameManager : BaseMgrMono<GameManager>
         // 首次进入：已在 01-MainMenu，不需要再异步加载场景
         sceneController.SetState(new StartScene(sceneController), false);
 
-        // 新入口：通过事件驱动 AudioMgr 播放主菜单 BGM（需要在 AudioRegistry 里配置 key）
-        EventCenter.Instance.EventTrigger(E_EventType.Audio_PlayBgm,
-            new AudioBgmRequest { key = "BGM_Menu", volume = 1f, loop = true });
+        // 通过事件驱动 AudioMgr 播放主菜单 BGM（AudioId 枚举驱动，无需关心音频名称）
+        EventCenter.Instance.EventTrigger(E_EventType.Audio_PlayBgm, AudioId.BGM_Menu);
 
         DontDestroyOnLoad(gameObject);
     }

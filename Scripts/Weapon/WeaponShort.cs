@@ -109,10 +109,8 @@ public class WeaponShort: WeaponBase
                  // number.transform.position = transform.position;
                 
              }
-            //音效（新版：AudioMgr + EventCenter）
-            EventCenter.Instance.EventTrigger<AudioPlayRequest>(
-                E_EventType.Audio_PlaySfx,
-                new AudioPlayRequest { key = "SFX_Attack", volume = 1f, pitch = 1f });
+            //音效（AudioId 枚举驱动，无需关心音频名称）
+            EventCenter.Instance.EventTrigger(E_EventType.Audio_PlaySfx, AudioId.SFX_Attack);
 
             gameObject.GetComponent<CapsuleCollider2D>().enabled = false;
         }
