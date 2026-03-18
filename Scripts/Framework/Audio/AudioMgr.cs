@@ -2,6 +2,33 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 音频管理器 —— 统一提供播放、停止、设置音量等操作。
+/// <para>
+/// 事件驱动（推荐，外部无需关心音频名称）：
+/// <code>
+/// // 播放 SFX
+/// EventCenter.Instance.EventTrigger(E_EventType.Audio_PlaySfx, AudioId.SFX_Attack);
+/// // 播放 BGM
+/// EventCenter.Instance.EventTrigger(E_EventType.Audio_PlayBgm, AudioId.BGM_Menu);
+/// // 停止 BGM
+/// EventCenter.Instance.EventTrigger(E_EventType.Audio_StopBgm);
+/// // 设置音量
+/// EventCenter.Instance.EventTrigger(E_EventType.Audio_SetVolume, new AudioVolumeRequest { master=1f, bgm=0.8f, sfx=1f, ui=1f });
+/// </code>
+/// </para>
+/// <para>
+/// 直接调用（可指定音量/音调）：
+/// <code>
+/// AudioMgr.Instance.PlaySfx(AudioId.SFX_Attack, volume: 0.8f, pitch: 1.2f);
+/// AudioMgr.Instance.PlayBgm(AudioId.BGM_Game);
+/// AudioMgr.Instance.StopBgm();
+/// AudioMgr.Instance.SetVolume(master: 1f, bgm: 0.8f, sfx: 1f, ui: 1f);
+/// </code>
+/// </para>
+/// <para>音频配置通过 <see cref="AudioRegistry"/> ScriptableObject 数据驱动，路径：Resources/Audio/AudioRegistry。</para>
+/// <para>短音效使用对象池（<see cref="PoolMgr"/>）高效复用 AudioSource。</para>
+/// </summary>
 public class AudioMgr : BaseMgr<AudioMgr>
 {
     private const string RegistryPath = "Audio/AudioRegistry";
@@ -58,18 +85,18 @@ public class AudioMgr : BaseMgr<AudioMgr>
 
     private void RegisterEvents()
     {
-        EventCenter.Instance.AddEventListener<AudioBgmRequest>(E_EventType.Audio_PlayBgm, OnPlayBgm);
+        // 事件驱动：外部只需传入 AudioId，无需构造请求结构体
+        EventCenter.Instance.AddEventListener<AudioId>(E_EventType.Audio_PlayBgm, id => PlayBgm(id));
         EventCenter.Instance.AddEventListener(E_EventType.Audio_StopBgm, StopBgm);
-
-        EventCenter.Instance.AddEventListener<AudioPlayRequest>(E_EventType.Audio_PlaySfx, OnPlaySfx);
-        EventCenter.Instance.AddEventListener<AudioVolumeRequest>(E_EventType.Audio_SetVolume, SetVolume);
+        EventCenter.Instance.AddEventListener<AudioId>(E_EventType.Audio_PlaySfx, id => PlaySfx(id));
+        EventCenter.Instance.AddEventListener<AudioVolumeRequest>(E_EventType.Audio_SetVolume, ApplyVolumeRequest);
     }
 
-    private bool TryGetEntry(string key, out AudioRegistry.Entry entry)
+    private bool TryGetEntry(AudioId id, out AudioRegistry.Entry entry)
     {
         entry = null;
-        if (registry == null || string.IsNullOrEmpty(key)) return false;
-        return registry.TryGet(key, out entry);
+        if (registry == null || id == AudioId.None) return false;
+        return registry.TryGet(id, out entry);
     }
 
     private float ResolveVolume(AudioCategory category, float baseVolume)
@@ -78,11 +105,25 @@ public class AudioMgr : BaseMgr<AudioMgr>
         return Mathf.Clamp01(baseVolume) * masterVolume * cat;
     }
 
-    // ── Public API（可直接调用，也可走 EventCenter）──────────────────────
+    // ── Public API ────────────────────────────────────────────────────────
 
-    public void PlayBgm(string key, float volume = 1f, bool loop = true)
-        => OnPlayBgm(new AudioBgmRequest { key = key, volume = volume, loop = loop });
+    /// <summary>播放 BGM，音量/循环使用 AudioRegistry 配置。</summary>
+    public void PlayBgm(AudioId id)
+        => PlayBgm(id, 0f, true);
 
+    /// <summary>播放 BGM，可覆盖音量与循环设置（volume=0 使用注册表默认值）。</summary>
+    public void PlayBgm(AudioId id, float volume, bool loop)
+    {
+        if (!TryGetEntry(id, out var entry) || entry.clip == null) return;
+
+        bgmSource.clip = entry.clip;
+        bgmSource.loop = loop || entry.loop;
+        bgmBaseVolume = (volume <= 0f ? entry.defaultVolume : volume);
+        bgmSource.volume = ResolveVolume(AudioCategory.Bgm, bgmBaseVolume);
+        bgmSource.Play();
+    }
+
+    /// <summary>停止 BGM。</summary>
     public void StopBgm()
     {
         if (bgmSource == null) return;
@@ -90,74 +131,55 @@ public class AudioMgr : BaseMgr<AudioMgr>
         bgmSource.clip = null;
     }
 
-    public void PlaySfx(string key, float volume = 1f, float pitch = 1f, AudioCategory forceCategory = AudioCategory.Sfx)
+    /// <summary>
+    /// 播放音效，音量/音调使用 AudioRegistry 配置。
+    /// 内部使用对象池高效复用 AudioSource。
+    /// </summary>
+    public void PlaySfx(AudioId id)
+        => PlaySfx(id, 0f, 0f);
+
+    /// <summary>
+    /// 播放音效，可覆盖音量与音调（传 0 表示使用注册表默认值）。
+    /// 内部使用对象池高效复用 AudioSource。
+    /// </summary>
+    public void PlaySfx(AudioId id, float volume, float pitch = 0f)
     {
-        OnPlaySfx(new AudioPlayRequest
-        {
-            key = key,
-            volume = volume,
-            pitch = pitch,
-            // 2D：不需要位置信息
-            usePosition = false,
-            position = Vector3.zero,
-            priority = 0
-        });
-    }
+        if (!TryGetEntry(id, out var entry) || entry.clip == null) return;
 
-    public void SetVolume(float master, float bgm, float sfx, float ui)
-    {
-        var req = new AudioVolumeRequest { master = master, bgm = bgm, sfx = sfx, ui = ui };
-        SetVolume(req);
-    }
-
-    // ── Event handlers ──────────────────────────────────────────────────
-
-    private void OnPlayBgm(AudioBgmRequest req)
-    {
-        if (!TryGetEntry(req.key, out var entry) || entry.clip == null)
-            return;
-
-        bgmSource.clip = entry.clip;
-        bgmSource.loop = req.loop || entry.loop;
-
-        bgmBaseVolume = (req.volume <= 0f ? entry.defaultVolume : req.volume);
-        bgmSource.volume = ResolveVolume(AudioCategory.Bgm, bgmBaseVolume);
-        bgmSource.Play();
-    }
-
-    private void OnPlaySfx(AudioPlayRequest req)
-    {
-        if (!TryGetEntry(req.key, out var entry) || entry.clip == null)
-            return;
-
-        // 统一：BGM 走 BGM 通道
+        // 若注册为 BGM，走 BGM 通道
         if (entry.category == AudioCategory.Bgm)
         {
-            OnPlayBgm(new AudioBgmRequest { key = req.key, volume = req.volume, loop = entry.loop });
+            PlayBgm(id, volume, entry.loop);
             return;
         }
 
         var category = entry.category;
         if (!CanPlay(category)) return;
 
+        // 从对象池获取 AudioSource 节点
         GameObject go = PoolMgr.Instance.GetObj(SfxPoolPrefabPath);
         if (go == null) return;
 
         var pooled = go.GetComponent<AudioSourcePooled>();
         if (pooled == null) return;
 
-        float baseVol = (req.volume <= 0f ? entry.defaultVolume : req.volume);
-        float pitch = (Mathf.Abs(req.pitch) > 0.001f ? req.pitch : entry.defaultPitch);
+        float baseVol = (volume <= 0f ? entry.defaultVolume : volume);
+        float finalPitch = (pitch <= 0f ? entry.defaultPitch : pitch);
 
-        // 2D：spatialBlend = 0，不做距离衰减
-        pooled.Play(entry.clip, SfxPoolPrefabPath, ResolveVolume(category, baseVol), pitch, entry.loop, 0f);
+        pooled.Play(entry.clip, SfxPoolPrefabPath, ResolveVolume(category, baseVol), finalPitch, entry.loop, 0f);
 
-        // 计数回收（loop 的情况下不递减，避免计数错误）
+        // 限音计数回收（loop 时不递减，避免计数错误）
         if (!entry.loop)
-            MonoMgr.Instance.StartCoroutine(ReleaseVoiceLater(category, entry.clip.length / Mathf.Max(0.01f, Mathf.Abs(pitch))));
+            MonoMgr.Instance.StartCoroutine(ReleaseVoiceLater(category, entry.clip.length / Mathf.Max(0.01f, Mathf.Abs(finalPitch))));
     }
 
-    private void SetVolume(AudioVolumeRequest req)
+    /// <summary>统一设置各通道音量（范围 0~1）。</summary>
+    public void SetVolume(float master, float bgm, float sfx, float ui)
+        => ApplyVolumeRequest(new AudioVolumeRequest { master = master, bgm = bgm, sfx = sfx, ui = ui });
+
+    // ── 内部辅助 ──────────────────────────────────────────────────────────
+
+    private void ApplyVolumeRequest(AudioVolumeRequest req)
     {
         masterVolume = Mathf.Clamp01(req.master);
         bgmVolume = Mathf.Clamp01(req.bgm);

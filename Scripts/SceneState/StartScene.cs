@@ -15,10 +15,8 @@ namespace SceneState
             // 显示主菜单面板
             UIMgr.Instance.ShowPanel<BeginScenePanel>();
 
-            // 通知音效系统播放菜单 BGM
-            EventCenter.Instance.EventTrigger<AudioBgmRequest>(
-                E_EventType.Audio_PlayBgm,
-                new AudioBgmRequest { key = "MenuBGM", loop = true });
+            // 通知音效系统播放菜单 BGM（AudioId 枚举驱动，无需关心音频名称）
+            EventCenter.Instance.EventTrigger(E_EventType.Audio_PlayBgm, AudioId.BGM_Menu);
         }
 
         public override void StateEnd()
