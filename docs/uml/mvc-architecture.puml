@@ -1,0 +1,302 @@
+@startuml mvc-architecture
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam groupInheritance 2
+hide empty members
+
+title TudouHeroTest · MVC + Infra Architecture
+
+' ============================
+' Infra (Infrastructure) Layer
+' ============================
+package "Infra · Infrastructure" #EEEEEE {
+
+    ' --- Singleton Bases ---
+    package "Singleton Base" #DDEEFF {
+        abstract class BaseMgr<T> {
+            {static} +Instance : T
+            {static} -_instance : T
+        }
+        abstract class BaseMgrMono<T> {
+            {static} +Instance : T
+            #Awake()
+        }
+    }
+
+    ' --- Core Services ---
+    package "Core Services" #DDFFD4 {
+        class EventCenter {
+            -_eventTable : Dictionary<E_EventType, Delegate>
+            +AddEventListener<T>(type, action)
+            +RemoveEventListener<T>(type, action)
+            +EventTrigger<T>(type, info)
+        }
+        class ConfigMgr {
+            +LoadList<T>(key) : List<T>
+        }
+        class UIMgr {
+            -_panelDict : Dictionary<string, BasePanel>
+            +ShowPanel<T>(name) : T
+            +HidePanel(name)
+        }
+        class PoolMgr {
+            -_pool : Dictionary<string, PoolData>
+            +GetObj(name, callback)
+            +PushObj(name, obj)
+        }
+        class ResourceMgr {
+            +LoadAsync<T>(name, callback)
+        }
+        class AudioMgr {
+            +PlayBGM(name)
+            +PlaySound(name)
+        }
+        class MonoMgr {
+            +AddUpdateListener(action)
+            +StartCoroutine(routine)
+        }
+    }
+
+    ' --- Enum ---
+    enum E_EventType {
+        Player_HpChanged
+        Player_Dead
+        Scene_ToMainMenu
+        Scene_ToLevelSelect
+        Scene_ToGamePlay
+        Scene_ToShop
+        Wave_Ended
+    }
+
+    BaseMgr <|-- EventCenter
+    BaseMgr <|-- ConfigMgr
+    BaseMgr <|-- UIMgr
+    BaseMgrMono <|-- PoolMgr
+    BaseMgrMono <|-- ResourceMgr
+    BaseMgrMono <|-- AudioMgr
+    BaseMgrMono <|-- MonoMgr
+
+    EventCenter ..> E_EventType : uses
+    AudioMgr ..> EventCenter : subscribes
+}
+
+' ============================
+' MVC · Model Layer
+' ============================
+package "MVC · Model" #FFF8DC {
+    class GameManager {
+        +hp : int
+        +money : int
+        +exp : int
+        +waveIndex : int
+        +selectedRole : RoleData
+        +selectedWeapon : WeaponData
+        +selectedDifficulty : DifficultyData
+        +ResetGameState()
+    }
+    class PlayerModel {
+        +hp : int
+        +money : int
+        ' Reserved for DI refactor
+    }
+    class RoleData {
+        +id : int
+        +name : string
+        +hp : int
+        +speed : float
+    }
+    class WeaponData {
+        +id : int
+        +name : string
+        +damage : int
+        +attackSpeed : float
+    }
+    class EnemyData {
+        +id : int
+        +hp : int
+        +speed : float
+        +damage : int
+    }
+    class PropData { +id : int }
+    class DifficultyData {
+        +levelName : string
+    }
+    class LevelData {
+        +waveIndex : int
+        +enemies : List<EnemyData>
+    }
+
+    BaseMgrMono <|-- GameManager
+    GameManager *-- RoleData
+    GameManager *-- WeaponData
+    GameManager *-- DifficultyData
+    ConfigMgr ..> RoleData : loads
+    ConfigMgr ..> WeaponData : loads
+    ConfigMgr ..> EnemyData : loads
+    ConfigMgr ..> PropData : loads
+    ConfigMgr ..> DifficultyData : loads
+    ConfigMgr ..> LevelData : loads
+}
+
+' ============================
+' MVC · View Layer
+' ============================
+package "MVC · View" #FFE4E1 {
+    abstract class BasePanel {
+        #_canvas : CanvasGroup
+        +ShowPanel()
+        +HidePanel()
+        #Init()
+    }
+    class BeginScenePanel
+    class GamePanel {
+        +RenewHp(hp)
+        +RenewMoney(money)
+        +RenewWave(wave)
+    }
+    class ShopPanel
+    class RoleSelectPanel
+    class WeaponSelectPanel
+    class DifficultySelectPanel
+    class FailPanel
+    class SuccessPanel
+
+    BasePanel <|-- BeginScenePanel
+    BasePanel <|-- GamePanel
+    BasePanel <|-- ShopPanel
+    BasePanel <|-- RoleSelectPanel
+    BasePanel <|-- WeaponSelectPanel
+    BasePanel <|-- DifficultySelectPanel
+    BasePanel <|-- FailPanel
+    BasePanel <|-- SuccessPanel
+
+    UIMgr ..> BasePanel : manages
+}
+
+' ============================
+' MVC · Controller Layer
+' ============================
+package "MVC · Controller" #E8F5E9 {
+
+    ' --- State Pattern ---
+    package "State Pattern" #C8E6C9 {
+        abstract class ISceneState {
+            #_stateController : SceneStateController
+            +StateStart()
+            +StateEnd()
+        }
+        class SceneStateController {
+            -_currentState : ISceneState
+            +SetState(state)
+        }
+        class StartScene
+        class SelectSecene
+        class GameScene
+        class ShopScene
+
+        ISceneState <|-- StartScene
+        ISceneState <|-- SelectSecene
+        ISceneState <|-- GameScene
+        ISceneState <|-- ShopScene
+        SceneStateController o-- ISceneState : currentState
+    }
+
+    class LevelControl {
+        -_waveIndex : int
+        +StartWave()
+        +SpawnEnemy()
+        +BadGame()
+        +GoodGame()
+    }
+    class Player {
+        +hp : int
+        +Injured(damage)
+        +Dead()
+    }
+
+    BaseMgrMono <|-- LevelControl
+    BaseMgrMono <|-- Player
+
+    GameManager --> SceneStateController : drives
+    GameManager ..> EventCenter : listen/trigger
+    LevelControl ..> EventCenter : triggers
+    Player ..> EventCenter : triggers
+    BeginScenePanel ..> EventCenter : triggers
+    ShopPanel ..> EventCenter : triggers
+}
+
+' ============================
+' Cross-Layer Communication
+' ============================
+GameManager ..> ConfigMgr : reads config
+GameManager ..> UIMgr : via events
+EventCenter ..> GamePanel : callback RenewHp/Money
+EventCenter ..> LevelControl : callback BadGame/GoodGame
+EventCenter ..> GameManager : callback scene transitions
+
+' ============================
+' Enemy / Weapon / Bullet
+' ============================
+package "Game Objects" #F3E5F5 {
+    abstract class EnemyBase {
+        +hp : int
+        +speed : float
+        +damage : int
+        +Attack()
+        +Dead()
+    }
+    class Enemy1
+    class Enemy2
+    class Enemy3
+    class Enemy4
+    class Enemy5
+
+    abstract class WeaponBase {
+        +damage : int
+        +attackSpeed : float
+        +Attack()
+    }
+    abstract class WeaponShort
+    abstract class WeaponLong
+    class FistWeapon
+    class PistolWeapon
+    class CrossbowWeapon
+    class BranchWeapon
+    class MedicalGunWeapon
+    class WeaponSlot
+
+    abstract class Bullet {
+        +speed : float
+        +damage : int
+    }
+    class ArrowBullet
+    class PistolBullet
+    class EnemyBullet
+    class MedicalBullet
+
+    EnemyBase <|-- Enemy1
+    EnemyBase <|-- Enemy2
+    EnemyBase <|-- Enemy3
+    EnemyBase <|-- Enemy4
+    EnemyBase <|-- Enemy5
+
+    WeaponBase <|-- WeaponShort
+    WeaponBase <|-- WeaponLong
+    WeaponShort <|-- FistWeapon
+    WeaponLong <|-- PistolWeapon
+    WeaponLong <|-- CrossbowWeapon
+    WeaponLong <|-- BranchWeapon
+    WeaponLong <|-- MedicalGunWeapon
+    WeaponSlot --> WeaponBase : holds
+
+    Bullet <|-- ArrowBullet
+    Bullet <|-- PistolBullet
+    Bullet <|-- EnemyBullet
+    Bullet <|-- MedicalBullet
+
+    EnemyBase ..> EventCenter : triggers Player_HpChanged
+    EnemyBase --> PoolMgr : returns self
+    WeaponBase --> PoolMgr : spawns Bullet
+}
+
+@enduml

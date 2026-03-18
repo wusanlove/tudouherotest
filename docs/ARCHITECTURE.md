@@ -1,5 +1,65 @@
 # 架构文档 · TudouHeroTest
 
+## UML 文件与使用方法
+
+本仓库在 `docs/uml/` 目录下提供两种格式的 MVC 架构图：
+
+| 文件 | 格式 | 用途 |
+|------|------|------|
+| [`docs/uml/mvc-architecture.puml`](uml/mvc-architecture.puml) | PlantUML | 完整类图，含分层分包、设计模式标注 |
+| [`docs/uml/mvc-architecture.mmd`](uml/mvc-architecture.mmd) | Mermaid | 结构与 PlantUML 版本一致，可在 GitHub 直接预览 |
+
+### PlantUML 渲染方式
+
+1. **VSCode 插件**：安装 [PlantUML](https://marketplace.visualstudio.com/items?itemName=jebbs.plantuml) 插件，打开 `.puml` 文件后按 `Alt+D` 预览。需本地安装 Java 和 Graphviz，或在插件设置中配置 PlantUML Server。
+2. **在线 PlantUML Server**：访问 <https://www.plantuml.com/plantuml/uml/>，将 `.puml` 文件内容粘贴后渲染。
+3. **本地 JAR**：下载 [plantuml.jar](https://plantuml.com/download) 后执行：
+   ```bash
+   java -jar plantuml.jar docs/uml/mvc-architecture.puml
+   ```
+
+### Mermaid 在 GitHub 中查看
+
+GitHub 原生支持 Mermaid。直接在浏览器中打开 [`docs/uml/mvc-architecture.mmd`](uml/mvc-architecture.mmd) 即可看到渲染后的类图。也可在任意 Markdown 文件中嵌入：
+
+````markdown
+```mermaid
+classDiagram
+    ...
+```
+````
+
+---
+
+## UML 层次说明
+
+架构图分为以下层次（对应 PlantUML/Mermaid 中的 package 分组）：
+
+| 层次 | 说明 | 主要类 |
+|------|------|--------|
+| **Infra · Infrastructure** | 跨场景持久化基础设施，全部为单例服务 | `BaseMgr<T>`、`BaseMgrMono<T>`、`EventCenter`、`ConfigMgr`、`UIMgr`、`PoolMgr`、`AudioMgr`、`MonoMgr`、`ResourceMgr` |
+| **MVC · Model** | 运行时游戏状态与数据结构 | `GameManager`、`RoleData`、`WeaponData`、`EnemyData`、`DifficultyData`、`LevelData`、`PlayerModel` |
+| **MVC · View** | UI 面板展示层，通过 EventCenter 接收更新 | `BasePanel`、`GamePanel`、`BeginScenePanel`、`ShopPanel`、`RoleSelectPanel` 等 |
+| **MVC · Controller** | 业务逻辑与场景流转控制 | `GameManager`、`SceneStateController`、`LevelControl`、`Player`、各 Scene State 类 |
+| **Game Objects** | 游戏实体（敌人、武器、子弹） | `EnemyBase`/Enemy1-5、`WeaponBase`/具体武器、`Bullet`/具体子弹 |
+
+> **Infra = Infrastructure**（基础设施层）：指不依赖具体游戏业务逻辑、可跨项目复用的通用服务框架，包括单例基类、事件总线、对象池、资源加载、音频管理等。
+
+---
+
+## 设计模式一览
+
+| 模式 | 实现类 | 说明 |
+|------|--------|------|
+| **单例（Singleton）** | `BaseMgr<T>`、`BaseMgrMono<T>` | 线程安全单例基类，所有 Manager 继承 |
+| **状态（State）** | `ISceneState`、`SceneStateController`、`StartScene`/`SelectSecene`/`GameScene`/`ShopScene` | 场景状态机，异步加载场景 |
+| **事件中心 / 观察者（Observer）** | `EventCenter`、`E_EventType` | 类型安全的发布-订阅事件总线，解耦各子系统 |
+| **外观（Facade）** | `GameManager`（对外提供游戏状态统一入口）、`UIMgr`（对外提供面板管理） | 封装子系统复杂性，提供简洁接口 |
+| **对象池（Object Pool）** | `PoolMgr`、`PoolData` | 复用 GameObject，减少 GC 压力 |
+| **模板方法（Template Method）** | `BasePanel`、`WeaponBase`、`EnemyBase` | 定义生命周期钩子，子类实现具体行为 |
+
+---
+
 ## 概览
 
 ```
